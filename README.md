@@ -88,9 +88,15 @@ This project is a work in progress.
 
 To read to and write from the K-Line, a dual comparator chip does the work of converting 
 between 5V and 12V logic levels, using voltage dividers to yield 6V and 2.5V reference
-voltages.  The output of one comparator goes to a PNP transistor to pull the k-line 
+voltages.  The output of the "write" comparator goes to a PNP transistor to pull the k-line 
 low when sending data back to the PCM.
 
 To power the arduino, the 12V OBD output is fed to a 9V voltage regulator, which in turn 
 feeds in built-in regulator on the Arduino nano.  A large capacitor briefly keeps the unit
 running long enough to save state to persistent memory on power-off.
+
+## Software
+
+The gauge software is written in C++ with minimal libraries to drive the LED displays.
+Serial communication is done with raw bit banging, implementing serial port communication 
+in software timed off the arduino microsecond timer.
