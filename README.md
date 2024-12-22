@@ -26,7 +26,7 @@ This project is a work in progress, currently prototyped on a breadboard while w
 * Auto-detect and cycling of protocols on startup or disconnect
 * Custom circuit board layout
 
-## Supported gauges (support is vehicle-dependent)
+## Supported gauges (functionality is vehicle-dependent)
 
 * Battery voltage level
 * Accumulated runtime
