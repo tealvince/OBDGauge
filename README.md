@@ -3,13 +3,13 @@ By Vince Lee (c)2024
 
 ## Description
 
-This project is a custom OBD cluster gauge for ECUs with a k-line interface
+This project is a custom OBD cluster gauge and experimentation platform for ECUs with a k-line interface
 driven by an Arduino nano and intended
 to be installed in a 2" diameter circular pod.
 
 ![prototype](https://github.com/tealvince/OBDGauge/blob/main/prototype.jpg?raw=true)
 
-This project is a work in progress.
+This project is a work in progress, currently prototyped on a breadboard while waiting for the PCB.
 
 ## Feature overview
 
