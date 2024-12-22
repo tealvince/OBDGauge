@@ -70,5 +70,15 @@ This project is a work in progress.
 * Clear codes
 * Burn adjustment (set multiplier to fine-tune fuel usage/efficiency stats)
 
+## Hardware
 
+![circuit board](https://github.com/tealvince/OBDGauge/blob/main/circuit-board.png?raw=true)
+
+* Custom circuit board
+* Arduino nano
+* Neopixel 16-LED ring light
+* TM1637 4-Digit LED numeric display
+* LM2903 Dual comparator IC
+* 2N3906 Transistor
+* DROK Mini voltage regulator (set to 9V)
 
