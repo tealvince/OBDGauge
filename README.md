@@ -82,3 +82,15 @@ This project is a work in progress.
 * 2N3906 Transistor
 * DROK Mini voltage regulator (set to 9V)
 
+## Circuit
+
+![schematic](https://github.com/tealvince/OBDGauge/blob/main/schematic.png?raw=true)
+
+To read to and write from the K-Line, a dual comparator chip does the work of converting 
+between 5V and 12V logic levels, using voltage dividers to yield 6V and 2.5V reference
+voltages.  The output of one comparator goes to a PNP transistor to pull the k-line 
+low when sending data back to the PCM.
+
+To power the arduino, the 12V OBD output is fed to a 9V voltage regulator, which in turn 
+feeds in built-in regulator on the Arduino nano.  A large capacitor briefly keeps the unit
+running long enough to save state to persistent memory on power-off.
