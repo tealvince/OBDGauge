@@ -9,6 +9,7 @@
 #define FUEL_ADJUST_MIN 0.10
 #define FUEL_ADJUST_MAX 10.00
 #define FUEL_ADJUST_DELTA 0.01
+#define BATTERY_VOLTAGE_DIVIDE (47+10)
 
 ///////////////////////////////////////////////////////////////
 // DISPLAYABLES
@@ -739,7 +740,7 @@ extern bool VDisplayables::updateCurrentItemValue() {
       break;
 
     case DISPLAYABLE_ITEM_BATTERY_VOLTS:
-      fvalue = analogRead(ds_powerAnalogPin) * 5.0 * 3.0 / 1023.0;
+      fvalue = analogRead(ds_powerAnalogPin) * 5.0 * BATTERY_VOLTAGE_DIVIDE / 1023.0;
       break;
 
     default:
