@@ -17,7 +17,7 @@ extern void VSerial::setup(int in, int out, void (*smartDelay)(unsigned long)) {
   outPin = out;
   ser_smartDelay = smartDelay;
 
-  if (inPin >= 0) pinMode(inPin, INPUT);
+  if (inPin >= 0) pinMode(inPin, INPUT_PULLUP);
   if (outPin >= 0) {
     pinMode(outPin, OUTPUT);
     digitalWrite(outPin, 1);

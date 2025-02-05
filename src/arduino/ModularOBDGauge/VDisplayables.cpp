@@ -5,11 +5,13 @@
 #include <EEPROM.h>
 #include <string.h>
 
-#define FAKE_FUEL_DATA 1
+#define FAKE_FUEL_DATA 0
+//#define FAKE_FUEL_DATA 1
 #define FUEL_ADJUST_MIN 0.10
 #define FUEL_ADJUST_MAX 10.00
 #define FUEL_ADJUST_DELTA 0.01
-#define BATTERY_VOLTAGE_DIVIDE (47+10)
+//#define BATTERY_VOLTAGE_DIVIDE (30+10)/10 // REV 1 board
+#define BATTERY_VOLTAGE_DIVIDE (47+10)/10 // REV 2 board
 
 ///////////////////////////////////////////////////////////////
 // DISPLAYABLES
@@ -596,15 +598,18 @@ extern void VDisplayables::setup(int inPin, int outPin, int powerAnalogPin, stru
 }
 
 extern void VDisplayables::mainLoop() {
+  if (!vobd.isConnected()) {
+    showCurrentItem();
+  }
+
   vmenu.mainLoop(false);
 
   // Connect if needed
   if (!vobd.isConnected()) {
-
     ds_output->showStatusString("Init");
 
     // Reset current protocol to auto if enough failures
-    if (ds_connectionErrorCount >= 4 && ds_persistedState.protocol != OBD_PROTOCOL_AUTOMATIC) {
+    if (ds_connectionErrorCount >= 5 && ds_persistedState.protocol != OBD_PROTOCOL_AUTOMATIC) {
       ds_persistedState.protocol = OBD_PROTOCOL_AUTOMATIC;
       ds_savePersistedState();
     }    
@@ -618,8 +623,8 @@ extern void VDisplayables::mainLoop() {
     ds_controls->smartDelay(500);
     switch(ds_testProtocol) {
       case OBD_PROTOCOL_ISO_9141: ds_output->showStatusString("9141"); break;
-      case OBD_PROTOCOL_KWP_SLOW: ds_output->showStatusString("S-2k"); break;
-      case OBD_PROTOCOL_KWP_FAST: ds_output->showStatusString("F-2k"); break;
+      case OBD_PROTOCOL_KWP_SLOW: ds_output->showStatusString("Slow"); ds_controls->smartDelay(300); ds_output->showStatusString("2000"); break;
+      case OBD_PROTOCOL_KWP_FAST: ds_output->showStatusString("Fast"); ds_controls->smartDelay(300); ds_output->showStatusString("2000"); break;
     }
 
     vobd.connect(ds_testProtocol);
@@ -627,17 +632,12 @@ extern void VDisplayables::mainLoop() {
     ds_connecting = false; ds_showStatusState();
 
     if (vobd.isConnected()) {
-      ds_requestErrorCount = 0; ds_showStatusState();
+      ds_connectionErrorCount = 0; ds_requestErrorCount = 0; ds_showStatusState();
       showCurrentItem();
-    } else { 
-      ds_output->showStatusString("Rset");
-      ds_resetting = true; ds_showStatusState();
-      vobd.resetConnection();
-      ds_resetting = false; ds_showStatusState();
     }
   } 
   
-  // Update value
+  // Fetch value and update display if success
   else if (updateCurrentItemValue()) {
     // Save current protocol if success
     if (ds_persistedState.protocol != ds_testProtocol) {
@@ -645,25 +645,26 @@ extern void VDisplayables::mainLoop() {
       ds_savePersistedState();
     }
 
-    if (ds_requestErrorCount || ds_connectionErrorCount) {        
-      ds_requestErrorCount = 0; ds_connectionErrorCount = 0;
-    }
-    ds_showStatusState();      
+    ds_requestErrorCount = 0; ds_connectionErrorCount = 0; ds_showStatusState();      
   }
 
-  // Handle failure
+  // Handle failure - disconnect after enough request failures
   else {
     ++ds_requestErrorCount; ds_showStatusState();
 
     if (ds_requestErrorCount >= 3) {
       vobd.disconnect();
+    }
+  } 
+
+  // Reset if not connected at end of loop
+  if (!vobd.isConnected()) {
       ds_connectionErrorCount++; ds_showStatusState();
       ds_output->showStatusString("Rset");
       ds_resetting = true; ds_showStatusState();
       vobd.resetConnection();
       ds_resetting = false; ds_showStatusState();
-    }
-  } 
+  }
 }
 
 static unsigned long lastMillis = 0;
