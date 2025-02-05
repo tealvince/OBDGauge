@@ -1,4 +1,4 @@
-# OBD Gauge
+# OBD Super Gauge
 By Vince Lee (c)2024
 
 ## Description
@@ -7,9 +7,7 @@ This project is a custom OBD cluster gauge and experimentation platform for ECUs
 driven by an Arduino nano and intended
 to be installed in a 2" diameter circular pod.
 
-![prototype](https://github.com/tealvince/OBDGauge/blob/main/prototype.jpg?raw=true)
-
-This project is a work in progress, currently prototyped on a breadboard while waiting for the PCB.
+![prototype](https://github.com/tealvince/OBDGauge/blob/main/gauge.jpg?raw=true)
 
 ## Feature overview
 
@@ -100,3 +98,9 @@ running long enough to save state to persistent memory on power-off.
 The gauge software is written in C++ with minimal libraries to drive the LED displays.
 Serial communication is done with raw bit banging, implementing serial port communication 
 in software timed off the arduino microsecond timer.
+
+## Case
+
+The case and internal supports are 3D printed.  Stl files are included, as well as an svg
+for the front glass with laser cut holes.
+
