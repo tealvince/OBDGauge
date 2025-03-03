@@ -15,6 +15,7 @@ struct DisplayablesOutputProvider {
   void  (*showFloatValue)(float value, int decimals, char *suffix, bool addPlus);
   void  (*showStatusState)(bool connecting, bool resetting, int errorCount, int connectionErrorCount, int protocolIndex);
   void  (*showStatusString)(char *text);
+  void  (*showStatusString_P)(char *text);
   void  (*setBrightness)(int brightness);
 };
 
@@ -32,6 +33,7 @@ class VDisplayables {
     void setup(int inPin, int outPin, int powerAnalogPin, struct DisplayablesOutputProvider *output, struct MenuDisplayProvider *display, struct MenuControlsProvider *controls);
     void mainLoop();
     bool updateCurrentItemValue();
+    void ping();
     bool showCurrentItem();
     void savePersistedState();
 };

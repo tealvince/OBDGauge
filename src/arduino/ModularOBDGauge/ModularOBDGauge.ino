@@ -41,6 +41,7 @@ void ap_showDisplayBar();
 void ap_showDisplayFloatValue(float num, int decimals, char *suffix, bool addPlus);
 void ap_showDisplayStatusState(bool connecting, bool resetting, int errorCount, int connectionErrorCount, int protocolIndex);
 void ap_showDisplayStatusString(char *text);
+void ap_showDisplayStatusString_P(char *ptext);
 void ap_setDisplayBrightness(int brightness);
 void ap_smartDelay(unsigned long wait);
 
@@ -62,6 +63,7 @@ struct DisplayablesOutputProvider app_displayablesOutputProvider = {
   ap_showDisplayFloatValue,
   ap_showDisplayStatusState,
   ap_showDisplayStatusString,
+  ap_showDisplayStatusString_P,
   ap_setDisplayBrightness,
 };
 
@@ -73,15 +75,17 @@ void setup() {
   pinMode(SWITCH_PIN_2, INPUT_PULLUP);
   vdigits.setup(DIGITS_PIN_CLK, DIGITS_PIN_DIO);
   vring.setup(RING_PIN_CONTROL, RING_LIGHT_COUNT, RING_BRIGHTNESS, RING_ROTATION_OFFSET);
-  vdisplayables.setup(OBD_IN_PIN, OBD_OUT_PIN, POWER_ANALOG_PIN, &app_displayablesOutputProvider, &app_menuDisplayProvider, &app_menuControlsProvider);
 
   vdigits.showString("Woot", false);
   ap_smartDelay(500);
-//  vring.showColors(true);
-//  ap_smartDelay(50000);
   vring.showDemo();
   ap_smartDelay(500);
   vring.clear();
+
+  vdisplayables.setup(OBD_IN_PIN, OBD_OUT_PIN, POWER_ANALOG_PIN, &app_displayablesOutputProvider, &app_menuDisplayProvider, &app_menuControlsProvider);
+
+//  vring.showColors(true);
+//  ap_smartDelay(50000);
 }
 
 void loop() {
@@ -109,6 +113,10 @@ bool ap_isControlsButton1Down() {
     }
     return ap_button1LastState = state;
   }
+
+  // Kind of hacky, but ping when reading buttons to keep connection alive
+  vdisplayables.ping();
+
   return ap_button1LastState;
 }
 
@@ -232,7 +240,7 @@ void ap_showDisplayStatusState(bool connecting, bool resetting, int errorCount, 
     } else if (connecting) {
       vring.setPixelColor(RING_STATUS_COUNT-i-1, (i == protocolIndex % RING_STATUS_COUNT) ? 'b' : 'I');
     } else if (resetting) {
-      vring.setPixelColor(i, i <= RING_STATUS_COUNT-connectionErrorCount ? 'V' : 'v');
+      vring.setPixelColor(i, i <= RING_STATUS_COUNT-connectionErrorCount ? 'V' : 'p');
     } else {
       vring.setPixelColor(RING_STATUS_COUNT-i-1, i < errorCount ? 'R' : 'k');
     }
@@ -242,6 +250,12 @@ void ap_showDisplayStatusState(bool connecting, bool resetting, int errorCount, 
 
 void ap_showDisplayStatusString(char *text) {
   vdigits.showString(text, true);
+}
+
+void ap_showDisplayStatusString_P(char *ptext) {
+  char text[20];
+  strcpy_P(text, ptext);
+  ap_showDisplayStatusString(text);
 }
 
 void ap_setDisplayBrightness(int brightness) {
@@ -266,5 +280,8 @@ void ap_smartDelay(unsigned long wait) {
 
     unsigned long time = millis();
     if (time < start || time >= start + wait) return;
+
+    // Don't block UI for extended periods of time
+    if (time >= start + 100 && ap_isControlsButton1Down()) return;
   }
 }

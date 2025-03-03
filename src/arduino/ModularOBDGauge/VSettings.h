@@ -19,6 +19,9 @@ struct SettingsDataSource {
   void (*showDtcCodes)(void);
   void (*clearDtcCodes)(void);
   void (*setFuelAdjustment)(void);
+  void (*toggleDemoMode)(void);
+  void (*toggleDebugMode)(void);
+  void (*enterSniffMode)(int mode);
 
   bool (*isCurrentItemHidden)(void);
   bool (*isCurrentItemMultiUnit)(void);
@@ -33,6 +36,8 @@ class VSettings {
   private:
 
   public:
+    bool demoModeEnabled;
+    bool debugModeEnabled;
     void setup(struct SettingsDataSource *dataSource, struct MenuDisplayProvider *display, struct MenuControlsProvider *controls);
     void showMenu();
 };

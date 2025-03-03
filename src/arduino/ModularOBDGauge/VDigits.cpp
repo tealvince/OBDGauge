@@ -28,7 +28,7 @@
 
 #define TABLE_SIZE 128
 
-static const uint8_t dg_font[TABLE_SIZE] /*PROGMEM*/ = {
+static const uint8_t dg_font[TABLE_SIZE] PROGMEM = {
   0,
   /* degree */ SEG_A | SEG_B | SEG_F | SEG_G,
       0,0,0,  0,0,0,0,0,  0,0,0,0,0,
@@ -144,7 +144,7 @@ extern void VDigits::setup(int clockPin, int dataPin) {
 }
 
 extern void VDigits::showChar(int pos, unsigned char c, bool addDot) {
-    uint8_t segment = dg_font[c];
+    uint8_t segment = pgm_read_byte_near(dg_font + c);
     if (addDot) {
       segment |= SEG_DOT;
     }
@@ -159,10 +159,10 @@ extern void VDigits::showString(unsigned char *text, bool addDots) {
     }
 
     if (c<TABLE_SIZE) {
-      unsigned char font = dg_font[c];
+      unsigned char font = pgm_read_byte_near(dg_font+c);
       if (addDots && c != '.' && *text == '.') {
         text++;
-        font |= dg_font['.'];
+        font |= pgm_read_byte_near(dg_font+'.');
       }
       dg_display->setSegments(&font, 1, i);
     }

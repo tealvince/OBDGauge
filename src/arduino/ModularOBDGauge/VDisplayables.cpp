@@ -5,13 +5,17 @@
 #include <EEPROM.h>
 #include <string.h>
 
-#define FAKE_FUEL_DATA 0
-//#define FAKE_FUEL_DATA 1
+#define DEVELOPMENT 1
+
 #define FUEL_ADJUST_MIN 0.10
 #define FUEL_ADJUST_MAX 10.00
 #define FUEL_ADJUST_DELTA 0.01
-//#define BATTERY_VOLTAGE_DIVIDE (30+10)/10 // REV 1 board
-#define BATTERY_VOLTAGE_DIVIDE (47+10)/10 // REV 2 board
+
+#if DEVELOPMENT
+  #define BATTERY_VOLTAGE_DIVIDE (30+10)/10 // REV 1 board
+#else
+  #define BATTERY_VOLTAGE_DIVIDE (47+10)/10 // REV 2 board
+#endif
 
 ///////////////////////////////////////////////////////////////
 // DISPLAYABLES
@@ -110,11 +114,14 @@ static VMenu vmenu;
 static VSettings vsettings;
 static VObd vobd;
 static int  ds_requestErrorCount;
+static int  ds_totalRequestErrorCount;
 static int  ds_connectionErrorCount;
 static int  ds_lastItemIndex;
 static int  ds_powerAnalogPin;
 static bool ds_connecting;
 static bool ds_resetting;
+static bool ds_debugModeEnabled;
+static bool ds_demoModeEnabled;
 static int ds_testProtocol = OBD_PROTOCOL_FIRST - 1;
 static struct DisplayablesOutputProvider *ds_output;
 static struct MenuControlsProvider *ds_controls;
@@ -174,6 +181,11 @@ void ds_showStatusString(char *text) {
   ds_controls->smartDelay(500);
 }
 
+void ds_showStatusString_P(char *ptext) {
+  ds_output->showStatusString_P(ptext);
+  ds_controls->smartDelay(500);
+}
+
 void ds_showStatusInteger(int num) {
   char text[5];
   snprintf(text, sizeof(text), "%-4d", (int)num);
@@ -190,6 +202,7 @@ void ds_showStatusByte(int num) {
 
 struct ObdOutputProvider ds_outputProvider = {
   ds_showStatusString,
+  ds_showStatusString_P,
   ds_showStatusInteger,
   ds_showStatusByte,
 };
@@ -270,6 +283,14 @@ void ds_clearHistory(void) {
   ds_savePersistedState();
 }
 
+void ds_clearPersistedState(void) {
+  for (int i=0; i<sizeof(ds_persistedState); i++) {
+    ((unsigned char *)&ds_persistedState)[i] = -1;
+  }
+  ds_savePersistedState();
+  ds_loadPersistedState();
+}
+
 void ds_setBrightness(int brightness) {
   ds_persistedState.brightness = brightness;
   ds_output->setBrightness(brightness);
@@ -302,23 +323,22 @@ void ds_showItemByName(char *name) {
       return;
     }
   }
-  ds_showStatusString("404!");
+  ds_showStatusString_P(PSTR("404!"));
   ds_showStatusString(name);
 }
 
 void ds_showDetails(void) {
   int pid = ds_getCurrentDisplayableObject()->pid;
 
-  ds_showStatusString("PID");
+  ds_showStatusString_P(PSTR("PID"));
   ds_showStatusByte(pid);
   vobd.sendPidRequest(pid, 1);
-  vobd.receivePidResponse(pid, 1, true, true);
-
+  vobd.receivePidResponse(pid, 1, true, 1);
 }
 
 void ds_showDtcMonitors(void) {
   vobd.sendPidRequest(0x01, 1);
-  unsigned long value = vobd.receivePidResponse(0x01, 1, true, false);
+  unsigned long value = vobd.receivePidResponse(0x01, 1, true, 0);
 
   if (value != -1) {
     int a = value >> 24;
@@ -326,40 +346,43 @@ void ds_showDtcMonitors(void) {
     int c = (value >> 8) & 0xff;
     int d = value & 0xff;
 
-    ds_showStatusString("CEL");
-    ds_showStatusString(a & 0xf0 ? "ON" : "OFF");
+    ds_showStatusString_P(PSTR("CEL"));
+    ds_showStatusString_P(a & 0xf0 ? PSTR("ON") : PSTR("OFF"));
     ds_controls->smartDelay(500);
-    ds_showStatusString("CDES");
+    ds_showStatusString_P(PSTR("CDES"));
     ds_showStatusInteger(a & 0x7f);
     ds_controls->smartDelay(500);
 
+    char *ready = PSTR("Redy");
+    char *nope = PSTR("Nope");
+
     // Common tests
-    if (b & 0x40) { ds_showStatusString("COMP"); ds_showStatusString(b & 0x04 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-    if (b & 0x20) { ds_showStatusString("FUEL"); ds_showStatusString(b & 0x02 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-    if (b & 0x10) { ds_showStatusString("MFIR"); ds_showStatusString(b & 0x01 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
+    if (b & 0x40) { ds_showStatusString_P(PSTR("COMP")); ds_showStatusString_P(b & 0x04 ? ready : nope); ds_controls->smartDelay(500); }
+    if (b & 0x20) { ds_showStatusString_P(PSTR("FUEL")); ds_showStatusString_P(b & 0x02 ? ready : nope); ds_controls->smartDelay(500); }
+    if (b & 0x10) { ds_showStatusString_P(PSTR("MFIR")); ds_showStatusString_P(b & 0x01 ? ready : nope); ds_controls->smartDelay(500); }
 
     // Diesel
     if (b & 0x08) {
-      if (d & 0x08) { ds_showStatusString("Boos"); ds_showStatusString(c & 0x08 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x01) { ds_showStatusString("Caty"); ds_showStatusString(c & 0x01 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x20) { ds_showStatusString("EGas"); ds_showStatusString(c & 0x20 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x80) { ds_showStatusString("EGR" ); ds_showStatusString(c & 0x80 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x40) { ds_showStatusString("Filt"); ds_showStatusString(c & 0x40 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x02) { ds_showStatusString("NOS" ); ds_showStatusString(c & 0x02 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x10) { ds_showStatusString("res1"); ds_showStatusString(c & 0x10 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x04) { ds_showStatusString("res2"); ds_showStatusString(c & 0x04 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
+      if (d & 0x08) { ds_showStatusString_P(PSTR("Boos")); ds_showStatusString_P(c & 0x08 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x01) { ds_showStatusString_P(PSTR("Caty")); ds_showStatusString_P(c & 0x01 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x20) { ds_showStatusString_P(PSTR("EGas")); ds_showStatusString_P(c & 0x20 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x80) { ds_showStatusString_P(PSTR("EGR" )); ds_showStatusString_P(c & 0x80 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x40) { ds_showStatusString_P(PSTR("Filt")); ds_showStatusString_P(c & 0x40 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x02) { ds_showStatusString_P(PSTR("NOS" )); ds_showStatusString_P(c & 0x02 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x10) { ds_showStatusString_P(PSTR("res1")); ds_showStatusString_P(c & 0x10 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x04) { ds_showStatusString_P(PSTR("res2")); ds_showStatusString_P(c & 0x04 ? ready : nope); ds_controls->smartDelay(500); }
     } 
     
     // Spark
     else {
-      if (d & 0x08) { ds_showStatusString("Air2"); ds_showStatusString(c & 0x08 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x01) { ds_showStatusString("Caty"); ds_showStatusString(c & 0x01 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x02) { ds_showStatusString("CtHt"); ds_showStatusString(c & 0x02 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x80) { ds_showStatusString("EGR" ); ds_showStatusString(c & 0x80 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x04) { ds_showStatusString("Evap"); ds_showStatusString(c & 0x04 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x10) { ds_showStatusString("Filt"); ds_showStatusString(c & 0x10 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x20) { ds_showStatusString("O2"  ); ds_showStatusString(c & 0x20 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
-      if (d & 0x40) { ds_showStatusString("O2Ht"); ds_showStatusString(c & 0x40 ? "Redy": "Nope"); ds_controls->smartDelay(500); }
+      if (d & 0x08) { ds_showStatusString_P(PSTR("Air2")); ds_showStatusString_P(c & 0x08 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x01) { ds_showStatusString_P(PSTR("Caty")); ds_showStatusString_P(c & 0x01 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x02) { ds_showStatusString_P(PSTR("CtHt")); ds_showStatusString_P(c & 0x02 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x80) { ds_showStatusString_P(PSTR("EGR" )); ds_showStatusString_P(c & 0x80 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x04) { ds_showStatusString_P(PSTR("Evap")); ds_showStatusString_P(c & 0x04 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x10) { ds_showStatusString_P(PSTR("Filt")); ds_showStatusString_P(c & 0x10 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x20) { ds_showStatusString_P(PSTR("O2"  )); ds_showStatusString_P(c & 0x20 ? ready : nope); ds_controls->smartDelay(500); }
+      if (d & 0x40) { ds_showStatusString_P(PSTR("O2Ht")); ds_showStatusString_P(c & 0x40 ? ready : nope); ds_controls->smartDelay(500); }
     }
   }
   ds_controls->smartDelay(1500);
@@ -368,10 +391,10 @@ void ds_showDtcMonitors(void) {
 void ds_showDtcCode(long value) {
   if (!value) return;
   switch(value & 0xc0) {
-    case 0x00: ds_showStatusString(" P- "); break;
-    case 0x40: ds_showStatusString(" C- "); break;
-    case 0x80: ds_showStatusString(" B- "); break;
-    case 0xc0: ds_showStatusString(" U- " ); break;
+    case 0x00: ds_showStatusString_P(PSTR(" P- ")); break;
+    case 0x40: ds_showStatusString_P(PSTR(" C- ")); break;
+    case 0x80: ds_showStatusString_P(PSTR(" B- ")); break;
+    case 0xc0: ds_showStatusString_P(PSTR(" U- ") ); break;
   }
   char buf[6];
   sprintf(buf, "%04lx", value & 0x3fff);
@@ -382,7 +405,7 @@ void ds_showDtcCode(long value) {
 void ds_showDtcCodes(void) {
   vobd.sendPidRequest(0x00, 3);
   unsigned char bytes[10];
-  int byteCount = vobd.receivePidResponseData(bytes, 10, 0x0, 3, true, false);
+  int byteCount = vobd.receivePidResponseData(bytes, 10, 0x0, 3, true, 0);
   bool foundCode = false;
 
   for (int i = 0; i+1 < byteCount; i += 2) {
@@ -394,7 +417,7 @@ void ds_showDtcCodes(void) {
     }
   }
   if (!foundCode) {
-    ds_showStatusString("None" );
+    ds_showStatusString_P(PSTR("None"));
     ds_controls->smartDelay(2000);
   }
 
@@ -403,11 +426,33 @@ void ds_showDtcCodes(void) {
 
 void ds_clearDtcCodes(void) {
   vobd.sendPidRequest(0x00, 4);
-  unsigned long value = vobd.receivePidResponse(0x0, 4, true, false);
+  unsigned long value = vobd.receivePidResponse(0x0, 4, true, 0);
   if (value != -1) {
-    ds_showStatusString("Done");
+    ds_showStatusString_P(PSTR("Done"));
     ds_controls->smartDelay(2000);
   }
+}
+
+void ds_toggleDemoMode(void) {
+  ds_demoModeEnabled = !ds_demoModeEnabled;
+}
+
+void ds_toggleDebugMode(void) {
+  ds_debugModeEnabled = !ds_debugModeEnabled;
+}
+
+void ds_enterSniffMode(int mode) {
+  ds_debugModeEnabled = true; // disable pings
+
+  while (!ds_controls->isButton1Down()) {
+    vobd.receivePidResponse(0x0, 0, false, mode + 1);
+
+    // Example: c2 33 F1 0d 01 F4 -> 83 F1 11 41 0d 64 37
+  }
+  unsigned long end = millis();
+  while (ds_controls->isButton1Down() && ds_controls->isButton2Down() && millis() < end+2000L) {}
+
+  ds_debugModeEnabled = false; // disable pings
 }
 
 void ds_setFuelAdjustment(void) {
@@ -525,6 +570,9 @@ static struct SettingsDataSource ds_settingsDataSource = {
   ds_showDtcCodes,
   ds_clearDtcCodes,
   ds_setFuelAdjustment,
+  ds_toggleDemoMode,
+  ds_toggleDebugMode,
+  ds_enterSniffMode,
 
   ds_isCurrentItemHidden,
   ds_isCurrentItemMultiUnit,
@@ -535,7 +583,11 @@ static struct SettingsDataSource ds_settingsDataSource = {
 };
 
 void ds_showStatusState() {
+  if (ds_demoModeEnabled) {
+    ds_output->showStatusState(false, false, 0, 0, 0);
+  } else {
     ds_output->showStatusState(ds_connecting, ds_resetting, ds_requestErrorCount, ds_connectionErrorCount, ds_testProtocol - OBD_PROTOCOL_FIRST);
+  }
 }
 
 float ds_scaleDisplayableValue(float fvalue, struct DisplayableItem *disp, bool useAltUnits) {
@@ -593,25 +645,81 @@ extern void VDisplayables::setup(int inPin, int outPin, int powerAnalogPin, stru
   vmenu.setup(&ds_menuDataSource, display, controls);
   vsettings.setup(&ds_settingsDataSource, display, controls);
   vobd.setup(inPin, outPin, controls->smartDelay, &ds_outputProvider);
-
   ds_output->setBrightness(ds_persistedState.brightness);
+
+  // Startup overrides
+  long start = millis();
+  long end = start + 3000;
+  int barCount = ds_output->getBarCount();
+
+  ds_debugModeEnabled = false;
+  ds_demoModeEnabled = false;
+
+  // Hold buttons for hard memory reset
+  while(1) {
+    long time = millis();
+    bool b1 = ds_controls->isButton1Down();
+    bool b2 = ds_controls->isButton2Down();
+
+    if (!b1 && !b2) break;
+
+    int bar = (time - start) * barCount / (end - start);
+    for (int i=0; i<barCount; i++) ds_output->setBarColor(i, i>bar ? 'k' : 'r'); 
+    ds_output->showBar(); 
+    ds_output->showStatusString_P(b1 && b2 ? PSTR("FRes") : PSTR("Snif"));
+
+    if (time > end) {
+      for (int i=0; i<barCount; i++) ds_output->setBarColor(i, 'k'); 
+      ds_output->showBar(); 
+
+      while ((ds_controls->isButton1Down() || ds_controls->isButton2Down()) && millis() < end+2000L) {}
+
+      if (b1 && b2) {
+        ds_clearPersistedState();
+      } else if (b1) {
+        ds_enterSniffMode(1);
+      } else {
+        ds_enterSniffMode(0);
+      }
+      break;
+    }
+  }
 }
 
 extern void VDisplayables::mainLoop() {
-  if (!vobd.isConnected()) {
+  if (!vobd.isConnected() && !ds_demoModeEnabled) {
     showCurrentItem();
+    vmenu.mainLoop(false);
+    vmenu.highlightCurrentItem();
+  } else {
+    vmenu.mainLoop(false);
   }
 
-  vmenu.mainLoop(false);
-
   // Connect if needed
-  if (!vobd.isConnected()) {
-    ds_output->showStatusString("Init");
+  if (!vobd.isConnected() && !ds_demoModeEnabled) {
+    ds_output->showStatusString_P(PSTR("Init"));
+    ds_controls->smartDelay(500);
+
+    // Show error counts
+    if (ds_debugModeEnabled) {
+      char counts[4];
+      counts[0] = 'E';
+      counts[1] = ds_connectionErrorCount + '0';
+      counts[2] = ds_totalRequestErrorCount + '0';
+      counts[3] = ds_requestErrorCount + '0';
+      counts[4] = 0;
+      ds_output->showStatusString(counts);
+      ds_controls->smartDelay(500);
+    }
 
     // Reset current protocol to auto if enough failures
-    if (ds_connectionErrorCount >= 5 && ds_persistedState.protocol != OBD_PROTOCOL_AUTOMATIC) {
+    // Since kwp/9141 can have false positives (at least on sim), base switching to automatic based on request error
+    if ((ds_totalRequestErrorCount >= 9 || ds_connectionErrorCount >= 3) && ds_persistedState.protocol != OBD_PROTOCOL_AUTOMATIC) {
+      ds_totalRequestErrorCount = 0;
       ds_persistedState.protocol = OBD_PROTOCOL_AUTOMATIC;
       ds_savePersistedState();
+      ds_output->showStatusString_P(PSTR("Auto")); ds_controls->smartDelay(300); ds_output->showStatusString_P(PSTR("Scan"));
+      ds_controls->smartDelay(500);
     }    
 
     // Connect
@@ -620,11 +728,10 @@ extern void VDisplayables::mainLoop() {
 
     ds_connecting = true; ds_showStatusState();
 
-    ds_controls->smartDelay(500);
     switch(ds_testProtocol) {
-      case OBD_PROTOCOL_ISO_9141: ds_output->showStatusString("9141"); break;
-      case OBD_PROTOCOL_KWP_SLOW: ds_output->showStatusString("Slow"); ds_controls->smartDelay(300); ds_output->showStatusString("2000"); break;
-      case OBD_PROTOCOL_KWP_FAST: ds_output->showStatusString("Fast"); ds_controls->smartDelay(300); ds_output->showStatusString("2000"); break;
+      case OBD_PROTOCOL_ISO_9141: ds_output->showStatusString_P(PSTR("9141")); break;
+      case OBD_PROTOCOL_KWP_SLOW: ds_output->showStatusString_P(PSTR("Slow")); ds_controls->smartDelay(300); ds_output->showStatusString_P(PSTR("2000")); break;
+      case OBD_PROTOCOL_KWP_FAST: ds_output->showStatusString_P(PSTR("Fast")); ds_controls->smartDelay(300); ds_output->showStatusString_P(PSTR("2000")); break;
     }
 
     vobd.connect(ds_testProtocol);
@@ -645,12 +752,14 @@ extern void VDisplayables::mainLoop() {
       ds_savePersistedState();
     }
 
-    ds_requestErrorCount = 0; ds_connectionErrorCount = 0; ds_showStatusState();      
+    ds_requestErrorCount = 0; ds_totalRequestErrorCount = 0; ds_showStatusState();      
   }
 
   // Handle failure - disconnect after enough request failures
   else {
-    ++ds_requestErrorCount; ds_showStatusState();
+    ++ds_totalRequestErrorCount;
+    ++ds_requestErrorCount; 
+    ds_showStatusState();
 
     if (ds_requestErrorCount >= 3) {
       vobd.disconnect();
@@ -658,9 +767,9 @@ extern void VDisplayables::mainLoop() {
   } 
 
   // Reset if not connected at end of loop
-  if (!vobd.isConnected()) {
+  if (!vobd.isConnected() && !ds_demoModeEnabled) {
       ds_connectionErrorCount++; ds_showStatusState();
-      ds_output->showStatusString("Rset");
+      ds_output->showStatusString_P(PSTR("Rset"));
       ds_resetting = true; ds_showStatusState();
       vobd.resetConnection();
       ds_resetting = false; ds_showStatusState();
@@ -668,7 +777,9 @@ extern void VDisplayables::mainLoop() {
 }
 
 static unsigned long lastMillis = 0;
-float foo;
+static float demoValue = 0;
+static bool demoValueIncrements;
+
 extern bool VDisplayables::updateCurrentItemValue() {
   struct DisplayableItem *disp = ds_getCurrentDisplayableObject();
   bool useAltUnits = (ds_persistedState.itemsUsingAltUnitsMask & (1L << ds_persistedState.currentItemIndex)) && disp->unit2[0];
@@ -677,22 +788,68 @@ extern bool VDisplayables::updateCurrentItemValue() {
   char suffix = 0;
   long ms = millis();
 
+  if (ds_demoModeEnabled) {
+    int16_t min = (useAltUnits) ? disp->min2 : disp->min1;
+    int16_t max = (useAltUnits) ? disp->max2 : disp->max1;
+    float step = (max-min)/50;
+
+    ds_controls->smartDelay(100);
+    if (!random(100)) {
+      demoValueIncrements = !demoValueIncrements;
+    }
+
+    switch (ds_persistedState.currentItemIndex) {
+      case DISPLAYABLE_ITEM_TOTAL_DISTANCE:
+      case DISPLAYABLE_ITEM_TOTAL_TIME:
+      case DISPLAYABLE_ITEM_TOTAL_FUEL:
+        demoValueIncrements = true;
+        step /= 700;
+    }
+
+    if (!demoValueIncrements) {
+      if (demoValue < min+step) demoValueIncrements = true;
+      else demoValue -= step;
+    } else {
+      if (demoValue > max-step) demoValueIncrements = false;
+      else demoValue += step;
+    }
+
+    ds_showDisplayableNumber(demoValue, disp, useAltUnits, suffix);
+    ds_showDisplayableBar(demoValue, disp, useAltUnits, false);
+    ds_output->showBar();
+    ds_showStatusState();
+    return true;
+  }
+
   // Always fetch speed (in km/hr) and fuel consumption (in l/20hr) for accumulated values
   vobd.sendPidRequest(0x0d, 1);
-  long speedValue = vobd.receivePidResponse(0x0d, 1, true, false);
+  long speedValue = vobd.receivePidResponse(0x0d, 1, true, 0);
+  long mafValue = -1;
+
+  // Speed should be supported by everything, so return error if no
   if (speedValue == -1) return false;
 
   vobd.sendPidRequest(0x5e, 1);
-  long burnValue = vobd.receivePidResponse(0x5e, 1, false, false); // swallow error silently as not critical
+  long burnValue = vobd.receivePidResponse(0x5e, 1, false, 0); // swallow error silently as not critical
+
+  // If burn value is not available, estimate from MAF
+  // - divide by 14.7 (idea air/fuel ratio) to get g/s of gas
+  // - multiply by 3600 to get g/hour of gas
+  // - divide by 740g/l to get l/hour of gas
+  // - divide by 5 for difference between burn/maf rate formula divisors
+  if (burnValue < 0 || (burnValue == 0 && speedValue > 0)) {
+    vobd.sendPidRequest(0x10, 1);
+    mafValue = vobd.receivePidResponse(0x10, 1, false, 0);
+    if (mafValue >= 0) {
+      burnValue = ((float)mafValue * 3600.0) / (14.7 * 740 * 5);
+    }
+  }
 
   // Update accumulated values
   if (lastMillis && ms > lastMillis) {
     ds_persistedState.totalElapsedSeconds += ((double)(ms - lastMillis))/1000.0;
     if (speedValue > 0) {
       ds_persistedState.totalDrivenKilometers += ((double)(ms - lastMillis))*speedValue/3600000.0;
-    }
-    if (FAKE_FUEL_DATA && burnValue <= 0) {
-      burnValue = 100 + speedValue * speedValue / 150;
     }
     if (burnValue > 0) {
       ds_persistedState.totalConsumedFuelLitres += ((double)(ms - lastMillis))*burnValue/3600000.0/20.0;
@@ -727,13 +884,13 @@ extern bool VDisplayables::updateCurrentItemValue() {
 
     case DISPLAYABLE_ITEM_AVERAGE_SPEED:
       fvalue = ds_persistedState.totalDrivenKilometers/ds_persistedState.totalElapsedSeconds*3600.0;
-      fvalue2 = speedValue;
+      fvalue2 = (speedValue > 0) ? speedValue : 0;
       break;
 
     case DISPLAYABLE_ITEM_TOTAL_EFFICIENCY:
       if (useAltUnits) {
         fvalue = (ds_persistedState.totalConsumedFuelLitres <= 0) ? 0 : ds_persistedState.totalDrivenKilometers / ds_persistedState.totalConsumedFuelLitres / ds_persistedState.fuelAdjustment;
-        fvalue2 = (burnValue <= 0) ? 0 : speedValue / (burnValue / 20.0) / ds_persistedState.fuelAdjustment;
+        fvalue2 = (speedValue < 0) ? 0 : (burnValue <= 0) ? 0 : speedValue / (burnValue / 20.0) / ds_persistedState.fuelAdjustment;
       } else {
         fvalue = (ds_persistedState.totalDrivenKilometers <= 0) ? 0 : ds_persistedState.totalConsumedFuelLitres / ds_persistedState.totalDrivenKilometers * ds_persistedState.fuelAdjustment;
         fvalue2 = (speedValue <= 0) ? 100000.0 : (burnValue / 20.0) / speedValue * ds_persistedState.fuelAdjustment;
@@ -745,23 +902,25 @@ extern bool VDisplayables::updateCurrentItemValue() {
       break;
 
     default:
-      // Use accumulated speed value is available
+      long value = -1;
+
+      // Use previously fetched speed value if available
       if (disp->pid == 0x0d && speedValue >= 0) {
-        fvalue = (float)speedValue;
-        break;
+        value = speedValue;
       }
 
-      // Use accumulated burn value if available
-      if (disp->pid == 0x5e && burnValue >= 0) {
-        fvalue = (float)burnValue * ds_persistedState.fuelAdjustment;
-        break;
+      // Use previously fetched burn value if available
+      else if (disp->pid == 0x5e && burnValue >= 0) {
+        value = (float)burnValue * ds_persistedState.fuelAdjustment;
       }
 
       // Else get PID value
-      vobd.sendPidRequest(disp->pid, 1);
-
-      long value = vobd.receivePidResponse(disp->pid, 1, true, false);
-      if (value == -1) return false;
+      else {
+        vobd.sendPidRequest(disp->pid, 1);
+        // Just return 0 if PID is not supported, as some are optional
+        value = vobd.receivePidResponse(disp->pid, 1, true, ds_debugModeEnabled);
+        if (value == -1) return 0;
+      }
 
       // Offset and scale value
       value = (unsigned long)value >> disp->shift;
@@ -781,6 +940,12 @@ extern bool VDisplayables::updateCurrentItemValue() {
   ds_output->showBar();
 
   return true;
+}
+
+extern void VDisplayables::ping() {
+  if (!ds_demoModeEnabled) {
+    vobd.ping();
+  }
 }
 
 extern bool VDisplayables::showCurrentItem() {

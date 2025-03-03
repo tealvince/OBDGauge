@@ -6,6 +6,8 @@
 // Software-driven serial port
 ///////////////////////////////////////////////////////////////
 
+#define TIME_AFTER(_t1,_t2)   ((long)((_t1) - (_t2)) > 0)
+
 //------------------------------------------------------
 // Public
 //------------------------------------------------------
@@ -24,39 +26,49 @@ extern void VSerial::setup(int in, int out, void (*smartDelay)(unsigned long)) {
   }
 }
 
-extern int VSerial::readBytes(unsigned char **byteBuf, unsigned long timeoutMs, unsigned long baud) {
-  int flipCount = readFlips(flips, SERIAL_MAX_FLIPS, timeoutMs, 250000L/baud);
-  int byteCount = decodeFlipsToBytes(bytes, SERIAL_MAX_BYTES, flips, flipCount, baud);
+extern int VSerial::readBytes(unsigned char **byteBuf, unsigned long timeoutMs, unsigned long inactivityTimeoutMs, unsigned long baud, unsigned long *minByteSpacing, unsigned long *maxByteSpacing) {
+  int flipCount = readFlips(flips, SERIAL_MAX_FLIPS, timeoutMs, inactivityTimeoutMs);
+  int byteCount = decodeFlipsToBytes(bytes, SERIAL_MAX_BYTES, flips, flipCount, baud, minByteSpacing, maxByteSpacing);
 
   *byteBuf = bytes;
-
   return byteCount;
 }
 
-extern void VSerial::sendBytes(unsigned char *bytes, int count, unsigned long baud) {
-  unsigned long startTime = micros();
-
-  for (int i=0; i<count; i++) {
-    sendByte(*bytes++, baud, startTime, i);
-  }   
+extern int VSerial::readFlipIntervals(unsigned long **flipBuf, unsigned long timeoutMs, unsigned long inactivityTimeoutMs) {
+  int flipCount = readFlips(flips, SERIAL_MAX_FLIPS, timeoutMs, inactivityTimeoutMs);
+  for (int i = flipCount-2; i >= 0; i--) {
+    flips[i+1] -= flips[i];
+  }
+  flips[0] = 0;
+  *flipBuf = flips;
+  return flipCount;
 }
 
-extern void VSerial::sendByte(unsigned char val, unsigned long baud, unsigned long startTime, int bytesSoFar) {
+//#define US_BIT_OFFSET(_byte,_bit,_baud,_byteMsDelay)  (1000000L * ((_byte) * 10L + (_bit))/(_baud) + (_byte)*(_byteMsDelay)*1000L);  // start bit
 
-    sendBit(0, startTime + (1000000L * (long)(bytesSoFar*10+1))/baud);  // start bit
-
-    for (int bit=0; bit<8; bit++) {
-      sendBit((val>>bit)&1, startTime + (1000000L * (long)(bytesSoFar*10+2+bit))/baud);
+extern void VSerial::sendBytes(unsigned char *bytes, int count, unsigned long baud, int msDelayBetweenBytes) {
+  for (int i=0; i<count; i++) {
+     sendByte(*bytes++, baud);
+    if (msDelayBetweenBytes && i<count-1) {
+      delayUntil(micros() + msDelayBetweenBytes * 1000L);
     }
-
-    sendBit(1, startTime + (1000000L * (long)(bytesSoFar*10+10))/baud);  // stop bit
+  }
 }
 
-extern void VSerial::sendByteRepeatedly(unsigned char byte, int count, unsigned long baud) {
-  unsigned long startTime = micros();
+extern void VSerial::sendByte(unsigned char val, unsigned long baud) {
+    unsigned long totalPulses = 0;
+    unsigned int value = (val << 1) | 0x200;  // Add start bit and stop bit
+    unsigned long startTime = micros() - 3;   // Adjust time for entering loop, verified by logic analyzer
 
+    for (int bit=0; bit<10; bit++) {
+      sendBit(value&1, startTime + (1000000L * (++totalPulses))/baud); // data bits
+      value >>= 1;
+    }
+}
+
+extern void VSerial::sendByteRepeatedly(unsigned char byte, int count, unsigned long baud, int msDelayBetweenBytes) {
   for (int i=0; i<count; i++) {
-    sendByte(byte, baud, startTime, i);
+    sendByte(byte, baud);
   }   
 }
 
@@ -65,14 +77,23 @@ extern void VSerial::sendBit(int val, long waitUs) {
     delayUntil(waitUs);
 }
 
+extern void VSerial::waitForIdle(unsigned long idleMs, unsigned long timeoutMs) {
+  unsigned long endTime = micros() + timeoutMs * 1000L;
+  while(1) {
+    if (readFlips(flips, 1, idleMs, 0) == 0 || TIME_AFTER(micros(), endTime)) {
+      return;
+    }
+  }
+}
+
 //------------------------------------------------------
 // Private
 //------------------------------------------------------
 
-int VSerial::readFlips(long *buffer, int buflen, long startTimeoutMs, long inactivityTimeoutMs) {
+int VSerial::readFlips(long *buffer, int buflen, long messageTimeoutMs, long byteTimeoutMs) {
   unsigned long startTime = micros();
-  unsigned long endTime = startTime + startTimeoutMs * 1000L;
-  unsigned long endTime2 = startTime + inactivityTimeoutMs * 1000L;
+  unsigned long endTime = startTime + messageTimeoutMs * 1000L;
+  unsigned long endTime2 = startTime + byteTimeoutMs * 1000L;
   int last = digitalRead(inPin);
   int index = 0;
   bool foundLow = false;
@@ -81,7 +102,7 @@ int VSerial::readFlips(long *buffer, int buflen, long startTimeoutMs, long inact
   while(1) {
     unsigned long time = micros();
 
-    if ((time > endTime && index == 0) || (index > 0 && time > endTime2)) return index;
+    if ((TIME_AFTER(time, endTime) && index == 0) || (index > 0 && TIME_AFTER(time, endTime2))) return index;
 
     // Call this to detect interruptions
     ser_smartDelay(0);
@@ -98,12 +119,12 @@ int VSerial::readFlips(long *buffer, int buflen, long startTimeoutMs, long inact
         buffer[index++] = time;
       }
       last = val;
-      endTime2 = time + inactivityTimeoutMs * 1000L;
+      endTime2 = time + byteTimeoutMs * 1000L;
     }
   }
 }
 
-int VSerial::decodeFlipsToBytes(unsigned char *bytes, int bytesLen, unsigned long *flips, int flipCount, long baud) {
+int VSerial::decodeFlipsToBytes(unsigned char *bytes, int bytesLen, unsigned long *flips, int flipCount, long baud, unsigned long *minByteSpacing, unsigned long *maxByteSpacing) {
   int index = 0;
   int startFlip = 0;
 
@@ -122,6 +143,13 @@ int VSerial::decodeFlipsToBytes(unsigned char *bytes, int bytesLen, unsigned lon
 
     // find next start bit (first down transition after stop bit)
     while (startFlip < flipCount && flips[startFlip] < start + 9500000L/baud) startFlip += 2;
+
+    // Get spacing for first few bytes (in outgoing request if sniffing packets)
+    if (startFlip < flipCount && index < 5) {
+      unsigned long byteSpacing = flips[startFlip] - flips[startFlip-1];
+      if (minByteSpacing && (index == 1 || byteSpacing < *minByteSpacing)) *minByteSpacing = byteSpacing;
+      if (maxByteSpacing && (index == 1 || byteSpacing > *maxByteSpacing)) *maxByteSpacing = byteSpacing;
+    }
   }
 }
 
@@ -137,7 +165,7 @@ int VSerial::decodeFlippedValueAtTime(unsigned long time, unsigned long *flips, 
 void VSerial::delayUntil(unsigned long waitUs) {
     while (1) {
       unsigned long time = micros();
-      if (time > waitUs && time < waitUs + 1000000L) {
+      if (TIME_AFTER(time, waitUs)) {
         return;
       }
     }
