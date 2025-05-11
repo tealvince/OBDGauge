@@ -1,4 +1,4 @@
-# vOBD - K-line Super Gauge
+# vOBD: The K-line Super Gauge
 By Vince Lee (c)2024-2025
 
 ## Description
