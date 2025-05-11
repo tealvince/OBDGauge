@@ -1,5 +1,5 @@
 # OBD Super Gauge
-By Vince Lee (c)2024
+By Vince Lee (c)2024-2025
 
 ## Description
 
@@ -62,11 +62,15 @@ to be installed in a 2" diameter circular pod.
 * Unit toggle (metric/imperial)
 * Hide current gauge
 * Show gauge (select from list)
+* Auto hide/show gauges based on supported PIDs
 * See data (dump raw hex data from current gauge)
 * Check readiness status
 * Read codes
 * Clear codes
 * Burn adjustment (set multiplier to fine-tune fuel usage/efficiency stats)
+* Toggle Demo mode (simulate ECU reponses)
+* Toggle Debug mode (show received bytes)
+* Enter Sniff mode (listen to K+ line and show received data; use with Y cable and other device)
 
 ## Hardware
 
@@ -87,10 +91,12 @@ to be installed in a 2" diameter circular pod.
 To read to and write from the K-Line, a dual comparator chip does the work of converting 
 between 5V and 12V logic levels, using voltage dividers to yield 6V and 2.5V reference
 voltages.  The output of the "write" comparator goes to a PNP transistor to pull the k-line 
-low when sending data back to the PCM.
+low when sending data back to the PCM, safely sinking more current than the comparator 
+can on its own.
 
 To power the arduino, the 12V OBD output is fed to a 9V voltage regulator, which in turn 
-feeds in built-in regulator on the Arduino nano.  A large capacitor briefly keeps the unit
+feeds in built-in regulator on the Arduino nano.  the extra regulator adds a layer of
+safety against power fluctions over 12V.  A large capacitor briefly keeps the unit
 running long enough to save state to persistent memory on power-off.
 
 ## Software
@@ -101,6 +107,6 @@ in software timed off the arduino microsecond timer.
 
 ## Case
 
-The case and internal supports are 3D printed.  Stl files are included, as well as an svg
-for the front glass with laser cut holes.
+The case and internal spacers and supports are 3D printed.  Stl files are included, as 
+well as an svg for the front glass with laser cut holes for the buttons.
 
