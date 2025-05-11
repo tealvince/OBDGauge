@@ -1,8 +1,11 @@
+#include "Environment.h"
 #include "VDigits.h"
 #include "VDisplayables.h"
 #include "VRing.h"
 
-#define WOKWI   0
+//
+// MODULAROBDGAUGE.INO
+//
 
 #define DIGITS_PIN_CLK      5
 #define DIGITS_PIN_DIO      6
@@ -33,7 +36,7 @@ VRing vring;
 // Forward declarations
 bool ap_isControlsButton1Down();
 bool ap_isControlsButton2Down();
-void ap_menuItemHighlight(int current, char color, int count);
+void ap_menuItemHighlight(int current, char color, int count, char defaultColor);
 void ap_menuItemShowTitle(char *title);
 int  ap_getDisplayBarCount(void);
 void ap_setDisplayBarColor(int index, unsigned char color);
@@ -76,16 +79,14 @@ void setup() {
   vdigits.setup(DIGITS_PIN_CLK, DIGITS_PIN_DIO);
   vring.setup(RING_PIN_CONTROL, RING_LIGHT_COUNT, RING_BRIGHTNESS, RING_ROTATION_OFFSET);
 
-  vdigits.showString("Woot", false);
-  ap_smartDelay(500);
+  ap_showDisplayStatusString_P(PSTR("VObd"));
   vring.showDemo();
-  ap_smartDelay(500);
+  ap_smartDelay(800);
+  ap_showDisplayStatusString_P(PSTR(" " BUILD_VERSION));
+  ap_smartDelay(800);
   vring.clear();
 
   vdisplayables.setup(OBD_IN_PIN, OBD_OUT_PIN, POWER_ANALOG_PIN, &app_displayablesOutputProvider, &app_menuDisplayProvider, &app_menuControlsProvider);
-
-//  vring.showColors(true);
-//  ap_smartDelay(50000);
 }
 
 void loop() {
@@ -132,13 +133,13 @@ bool ap_isControlsButton2Down() {
   return ap_button2LastState;
 }
 
-void ap_menuItemHighlight(int current, char color, int count) {
+void ap_menuItemHighlight(int current, char color, int count, char defaultColor) {
   // Show current entry in ring
   for (int i = 0; i < RING_LIGHT_COUNT; i++) {
     if (i == (current + RING_STATUS_COUNT) % RING_LIGHT_COUNT) {
       vring.setPixelColor(i, color);
     } else if (i >= RING_STATUS_COUNT && i < RING_STATUS_COUNT + count || (RING_STATUS_COUNT + count > RING_LIGHT_COUNT && i < (RING_STATUS_COUNT + count) % RING_LIGHT_COUNT)) {
-      vring.setPixelColor(i, 'I');
+      vring.setPixelColor(i, defaultColor);
     } else {
       vring.setPixelColor(i, 'k');
     }

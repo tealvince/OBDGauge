@@ -4,7 +4,7 @@
 #include "VMenu.h"
 
 ///////////////////////////////////////////////////////////////
-// VSETTINGS
+// VSETTINGS.H
 // Settings menu
 ///////////////////////////////////////////////////////////////
 
@@ -12,6 +12,7 @@ struct SettingsDataSource {
   void (*clearHistory)(void);
   void (*setBrightness)(int brightness);
   void (*toggleCurrentItemUnits)(void);
+  void (*autoScanItems)(void);
   void (*hideCurrentItem)(void);
   void (*showItemByName)(char *name);
   void (*showCurrentItemDetails)(void);

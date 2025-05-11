@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 ///////////////////////////////////////////////////////////////
-// VSETTINGS
+// VSETTINGS.CPP
 // Settings menu
 ///////////////////////////////////////////////////////////////
 
@@ -22,19 +22,20 @@ static MenuDisplayProvider *st_display;
 #define SETTINGS_MENU_ITEM_UNITS          3
 #define SETTINGS_MENU_ITEM_HIDE           4
 #define SETTINGS_MENU_ITEM_SHOW           5 
-#define SETTINGS_MENU_ITEM_INFO           6
-#define SETTINGS_MENU_ITEM_DTC_MONITORS   7
-#define SETTINGS_MENU_ITEM_DTC_CODE       8
-#define SETTINGS_MENU_ITEM_DTC_CLEAR      9
-#define SETTINGS_MENU_ITEM_FUEL_ADJUST    10
-#define SETTINGS_MENU_ITEM_DEMO_MODE      11
-#define SETTINGS_MENU_ITEM_DEBUG_MODE     12
-#define SETTINGS_MENU_ITEM_SNIFF_MODE     13
-#define SETTINGS_MENU_ITEM_COUNT          14
+#define SETTINGS_MENU_ITEM_AUTO_SCAN      6
+#define SETTINGS_MENU_ITEM_INFO           7
+#define SETTINGS_MENU_ITEM_DTC_MONITORS   8
+#define SETTINGS_MENU_ITEM_DTC_CODE       9
+#define SETTINGS_MENU_ITEM_DTC_CLEAR      10
+#define SETTINGS_MENU_ITEM_FUEL_ADJUST    11
+#define SETTINGS_MENU_ITEM_DEMO_MODE      12
+#define SETTINGS_MENU_ITEM_DEBUG_MODE     13
+#define SETTINGS_MENU_ITEM_SNIFF_MODE     14
+#define SETTINGS_MENU_ITEM_COUNT          15
 
-static const char *st_titles1[] = { "BACK", "ERAs", "DISP", "UNIt", "HIDE", "SHOW", "SEE",  "CHEK", "READ", "CLR",  "Burn", "Demo", "DBug", "Snif" };
-static       char *st_titles2[] = { "BACK", "HISt", "Brte", "TOGL", "gAgE", "gAgE", "Data", "REDY", "CDES", "CDES", "Adj.", "Mode", "Mode", "Mode" };
-static const char  st_colors[]  = "bvworgpycnlPNR";
+static const char *st_titles1[] = { "BACK", "ERAs", "DISP", "UNIt", "HIDE", "SHOW", "Auto", "SEE",  "CHEK", "READ", "CLR",  "Burn", "Demo", "DBug", "Snif" };
+static       char *st_titles2[] = { "BACK", "HISt", "Brte", "TOGL", "gAgE", "gAgE", "gAgE", "Data", "REDY", "CDES", "CDES", "Adj.", "Mode", "Mode", "Mode" };
+static const char  st_colors[]  = "bvworgGpycnliNR";
 
 //------------------------------------------------------
 // Private (brighness menu support)
@@ -44,11 +45,11 @@ bool st_brightnessAction(int current, int button);
 
 static const char *st_brightnessTitles[] = { "br 1","br 2","br 3","br 4","br 5" };
 static struct MenuDataSource st_brightnessDataSource = {
-  5, NULL, NULL, NULL, NULL, NULL, NULL, NULL, st_brightnessAction, 0, st_brightnessTitles, st_brightnessTitles, NULL
+  5, NULL, NULL, NULL, NULL, NULL, NULL, NULL, st_brightnessAction, 'O', 0, st_brightnessTitles, st_brightnessTitles, NULL
 };
 
 static struct MenuDataSource st_showHiddenDataSource = {
-  1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, "bggggggggggggggggggggggggggggg"
+  1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Y', 0, NULL, NULL, "bggggggggggggggggggggggggggggg"
 };
 
 static VMenu st_britenessMenu;
@@ -93,6 +94,9 @@ bool st_longPressAction(int current, int button) {
     case SETTINGS_MENU_ITEM_HIDE:
       st_dataSource->hideCurrentItem();
       break;
+    case SETTINGS_MENU_ITEM_AUTO_SCAN:
+      st_dataSource->autoScanItems();
+      break;
     case SETTINGS_MENU_ITEM_BRIGHTNESS:
       st_britenessMenu.showMenu(NULL);
       st_brightnessAction(st_brightnessDataSource.alternateCurrentItem, button);
@@ -131,7 +135,7 @@ bool st_longPressAction(int current, int button) {
 }
 
 static struct MenuDataSource st_menuDataSource = {
-  SETTINGS_MENU_ITEM_COUNT, NULL, NULL, NULL, NULL, NULL, st_isItemHidden, st_longPressAction, NULL, 0, st_titles1, st_titles2, st_colors
+  SETTINGS_MENU_ITEM_COUNT, NULL, NULL, NULL, NULL, NULL, st_isItemHidden, st_longPressAction, NULL, 'P', 0, st_titles1, st_titles2, st_colors
 };
 
 static VMenu st_vmenu;

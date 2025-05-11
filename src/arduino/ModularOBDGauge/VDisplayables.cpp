@@ -1,3 +1,4 @@
+#include "Environment.h"
 #include "VDisplayables.h"
 #include "VSettings.h"
 #include "VObd.h"
@@ -5,20 +6,22 @@
 #include <EEPROM.h>
 #include <string.h>
 
-#define DEVELOPMENT 1
-
 #define FUEL_ADJUST_MIN 0.10
 #define FUEL_ADJUST_MAX 10.00
 #define FUEL_ADJUST_DELTA 0.01
 
-#if DEVELOPMENT
+#if BOARD_REV1
   #define BATTERY_VOLTAGE_DIVIDE (30+10)/10 // REV 1 board
 #else
   #define BATTERY_VOLTAGE_DIVIDE (47+10)/10 // REV 2 board
 #endif
 
+#define PID_SPEED       0x0d
+#define PID_MAF         0x10
+#define PID_BURN_VALUE  0x5e
+
 ///////////////////////////////////////////////////////////////
-// DISPLAYABLES
+// VDISPLAYABLES.CPP
 // Displayable OBD Gauges
 ///////////////////////////////////////////////////////////////
 
@@ -49,27 +52,27 @@ struct DisplayableItem {
   int16_t max2;
 };
 
-#define DISPLAYABLE_ITEM_BATTERY_VOLTS    0
-#define DISPLAYABLE_ITEM_TOTAL_TIME       1
-#define DISPLAYABLE_ITEM_TOTAL_FUEL       2
-#define DISPLAYABLE_ITEM_TOTAL_DISTANCE   3
-#define DISPLAYABLE_ITEM_TOTAL_EFFICIENCY 4
-#define DISPLAYABLE_ITEM_AVERAGE_SPEED    5
+#define DISPLAYABLE_ITEM_BATTERY_VOLTS      0
+#define DISPLAYABLE_ITEM_TOTAL_TIME         1
+#define DISPLAYABLE_ITEM_TOTAL_FUEL         2
+#define DISPLAYABLE_ITEM_TOTAL_DISTANCE     3
+#define DISPLAYABLE_ITEM_AVERAGE_EFFICIENCY 4
+#define DISPLAYABLE_ITEM_AVERAGE_SPEED      5
 
-#define DISPLAYABLE_ITEM_SPEED            6
-#define DISPLAYABLE_ITEM_TACHOMETER       7
-#define DISPLAYABLE_ITEM_COOLANT_TEMP     8
-#define DISPLAYABLE_ITEM_INTAKE_AIR_PRES  9
-#define DISPLAYABLE_ITEM_INTAKE_AIR_FLOW  10
-#define DISPLAYABLE_ITEM_THROTTLE_PERCENT 11
+#define DISPLAYABLE_ITEM_SPEED              6
+#define DISPLAYABLE_ITEM_TACHOMETER         7
+#define DISPLAYABLE_ITEM_COOLANT_TEMP       8
+#define DISPLAYABLE_ITEM_INTAKE_AIR_PRES    9
+#define DISPLAYABLE_ITEM_INTAKE_AIR_FLOW    10
+#define DISPLAYABLE_ITEM_THROTTLE_PERCENT   11
 
-#define DISPLAYABLE_ITEM_ENGINE_LOAD      12
-#define DISPLAYABLE_ITEM_TIMING_ADVANCE   13
-#define DISPLAYABLE_ITEM_INTAKE_TEMP      14
-#define DISPLAYABLE_ITEM_FUEL_TANK_LEVEL  15
-#define DISPLAYABLE_ITEM_FUEL_BURN_RATE   16
-#define DISPLAYABLE_ITEM_AIR_FUEL_EQRATIO 17
-#define DISPLAYABLE_ITEM_OXY_SENSOR_VOLTS 18
+#define DISPLAYABLE_ITEM_ENGINE_LOAD        12
+#define DISPLAYABLE_ITEM_TIMING_ADVANCE     13
+#define DISPLAYABLE_ITEM_INTAKE_TEMP        14
+#define DISPLAYABLE_ITEM_FUEL_TANK_LEVEL    15
+#define DISPLAYABLE_ITEM_FUEL_BURN_RATE     16
+#define DISPLAYABLE_ITEM_AIR_FUEL_EQRATIO   17
+#define DISPLAYABLE_ITEM_OXY_SENSOR_VOLTS   18
 
 #define DISPLAYABLE_ITEM_COUNT 19
 
@@ -137,6 +140,7 @@ struct DisplayablePersistedState {
   double totalConsumedFuelLitres;
   double fuelAdjustment;
   int protocol;
+  int hasAutoScannedItems;
 };
 
 static struct DisplayablePersistedState ds_persistedState;
@@ -164,6 +168,7 @@ void ds_loadPersistedState() {
   if (ds_persistedState.totalConsumedFuelLitres < 0 || isnan(ds_persistedState.totalConsumedFuelLitres)) ds_persistedState.totalConsumedFuelLitres = 0;
   if (ds_persistedState.fuelAdjustment < FUEL_ADJUST_MIN || ds_persistedState.fuelAdjustment > FUEL_ADJUST_MAX || isnan(ds_persistedState.fuelAdjustment)) ds_persistedState.fuelAdjustment = 1.0;
   if (ds_persistedState.protocol < OBD_PROTOCOL_FIRST || ds_persistedState.protocol > OBD_PROTOCOL_LAST) ds_persistedState.protocol = OBD_PROTOCOL_AUTOMATIC;
+  if (ds_persistedState.hasAutoScannedItems < 0 || ds_persistedState.hasAutoScannedItems > 1) ds_persistedState.hasAutoScannedItems = 0;
 }
 
 void ds_savePersistedState() {
@@ -269,7 +274,8 @@ static struct MenuDataSource ds_menuDataSource = {
   ds_getDisplayableColor, 
   ds_isDisplayableHidden, 
   ds_displayableLongPressAction,
-  NULL
+  NULL,
+  'I'
 };
 
 //------------------------------------------------------
@@ -301,10 +307,74 @@ void ds_toggleUnits(void) {
   ds_savePersistedState();
 }
 
+void ds_autoScanItemsAt(int base) {
+  unsigned char buf[4];
+
+  if (ds_demoModeEnabled) {
+    *(long *)buf = 0xffffffff;
+  } else {
+    vobd.sendPidRequest(base, 1);
+    if (4 > vobd.receivePidResponseData(buf, 4, base, 1, true, false)) {
+      return;
+    }
+  }
+
+  unsigned long mask = ((unsigned long)buf[0] << 24) | ((unsigned long)buf[1] << 16) | ((unsigned long)buf[2] << 8) | (unsigned long)buf[3];
+
+  for (int i=0; i<DISPLAYABLE_ITEM_COUNT; i++) {
+    struct DisplayableItem *item = ds_getDisplayableObject(i);
+
+    if (item->pid >= base + 1 && item->pid <= base + 0x20) {
+      if (mask & (0x80000000L >> (item->pid - base - 1))) {
+        ds_persistedState.itemsHiddenMask &= ~(1L << i);
+      } else {
+        ds_persistedState.itemsHiddenMask |= (1L << i);
+      }
+    } else if (item->pid == 0xff) {
+      ds_persistedState.itemsHiddenMask &= ~(1L << i);
+    }
+  }
+
+  for (int i=0; i<4; i++) {
+     char tbuf[6];
+     snprintf(tbuf, sizeof(tbuf), "%02X.%02X", (int)(base + i*8 + 1), (int)buf[i]);
+     ds_showStatusString(tbuf);
+  }
+}
+
+void ds_autoScanItems(void) {
+
+  ds_autoScanItemsAt(0x00);
+  ds_autoScanItemsAt(0x20);
+  ds_autoScanItemsAt(0x40);
+
+  // Handle estimatable/special-case items
+  if (!(ds_persistedState.itemsHiddenMask & (1L << DISPLAYABLE_ITEM_SPEED)) &&
+      !(ds_persistedState.itemsHiddenMask & (1L << DISPLAYABLE_ITEM_INTAKE_AIR_FLOW))) {
+    ds_persistedState.itemsHiddenMask &= ~(1L << DISPLAYABLE_ITEM_FUEL_BURN_RATE);
+  }
+  if (ds_persistedState.itemsHiddenMask & (1L << DISPLAYABLE_ITEM_FUEL_BURN_RATE)) {
+    ds_persistedState.itemsHiddenMask |= ((1L << DISPLAYABLE_ITEM_TOTAL_FUEL) | (1L << DISPLAYABLE_ITEM_AVERAGE_EFFICIENCY));
+  }
+  ds_savePersistedState();
+
+  int count = 0;
+  for (int i=0; i<DISPLAYABLE_ITEM_COUNT; i++) {
+    if ((ds_persistedState.itemsHiddenMask & (1L << i)) == 0) {
+      count ++;
+    }
+  }
+  ds_showStatusString_P(PSTR("Got"));
+  ds_showStatusInteger(count);
+  ds_showStatusString_P(PSTR("Gges"));
+  ds_controls->smartDelay(500);
+}
+
 void ds_hideCurrentItem(void) {
   ds_persistedState.itemsHiddenMask |= (1L << ds_persistedState.currentItemIndex);
-  for (int i=0; i<DISPLAYABLE_ITEM_COUNT-1; i++) {
-    ds_persistedState.currentItemIndex++;
+
+  // Find next visible item  
+  for (ds_persistedState.currentItemIndex++; ds_persistedState.currentItemIndex < DISPLAYABLE_ITEM_COUNT; ds_persistedState.currentItemIndex++) {
     if (!(ds_persistedState.itemsHiddenMask & (1L << ds_persistedState.currentItemIndex))) {
       ds_savePersistedState();
       return;
@@ -397,7 +467,7 @@ void ds_showDtcCode(long value) {
     case 0xc0: ds_showStatusString_P(PSTR(" U- ") ); break;
   }
   char buf[6];
-  sprintf(buf, "%04lx", value & 0x3fff);
+  snprintf(buf, sizeof(buf), "%04lx", value & 0x3fff);
   ds_showStatusString(buf);
   ds_controls->smartDelay(2000);
 }
@@ -471,7 +541,7 @@ void ds_setFuelAdjustment(void) {
 
       ds_persistedState.fuelAdjustment = min(max(ds_persistedState.fuelAdjustment, FUEL_ADJUST_MIN), FUEL_ADJUST_MAX);
 
-      sprintf(tbuf, "%d.%02d", (int)ds_persistedState.fuelAdjustment, (int)(ds_persistedState.fuelAdjustment*100)%100);
+      snprintf(tbuf, sizeof(tbuf), "%d.%02d", (int)ds_persistedState.fuelAdjustment, (int)(ds_persistedState.fuelAdjustment*100)%100);
       ds_showStatusString(tbuf);
     }
 }
@@ -490,7 +560,7 @@ bool ds_isCurrentItemComputed(void) {
     case DISPLAYABLE_ITEM_TOTAL_TIME:
     case DISPLAYABLE_ITEM_TOTAL_FUEL:
     case DISPLAYABLE_ITEM_AVERAGE_SPEED:
-    case DISPLAYABLE_ITEM_TOTAL_EFFICIENCY:
+    case DISPLAYABLE_ITEM_AVERAGE_EFFICIENCY:
     case DISPLAYABLE_ITEM_BATTERY_VOLTS:
       return true;
   }
@@ -563,6 +633,7 @@ static struct SettingsDataSource ds_settingsDataSource = {
   ds_clearHistory,
   ds_setBrightness,
   ds_toggleUnits,
+  ds_autoScanItems,
   ds_hideCurrentItem,
   ds_showItemByName,
   ds_showDetails,
@@ -583,18 +654,15 @@ static struct SettingsDataSource ds_settingsDataSource = {
 };
 
 void ds_showStatusState() {
-  if (ds_demoModeEnabled) {
-    ds_output->showStatusState(false, false, 0, 0, 0);
-  } else {
-    ds_output->showStatusState(ds_connecting, ds_resetting, ds_requestErrorCount, ds_connectionErrorCount, ds_testProtocol - OBD_PROTOCOL_FIRST);
-  }
+  ds_output->showStatusState(ds_connecting, ds_resetting, ds_requestErrorCount, ds_connectionErrorCount, ds_testProtocol - OBD_PROTOCOL_FIRST);
 }
 
 float ds_scaleDisplayableValue(float fvalue, struct DisplayableItem *disp, bool useAltUnits) {
-  fvalue += (useAltUnits) ? disp->offset2 : disp->offset1;
-  fvalue = fvalue * (useAltUnits ? disp->multiplier2 : disp->multiplier1);
-  fvalue /= (useAltUnits ? disp->divisor2 : disp->divisor1);
-
+  if (!ds_demoModeEnabled) {
+    fvalue += (useAltUnits) ? disp->offset2 : disp->offset1;
+    fvalue = fvalue * (useAltUnits ? disp->multiplier2 : disp->multiplier1);
+    fvalue /= (useAltUnits ? disp->divisor2 : disp->divisor1);
+  }
   return fvalue;
 }
 
@@ -687,7 +755,7 @@ extern void VDisplayables::setup(int inPin, int outPin, int powerAnalogPin, stru
 }
 
 extern void VDisplayables::mainLoop() {
-  if (!vobd.isConnected() && !ds_demoModeEnabled) {
+  if (!vobd.isConnected()) {
     showCurrentItem();
     vmenu.mainLoop(false);
     vmenu.highlightCurrentItem();
@@ -696,7 +764,7 @@ extern void VDisplayables::mainLoop() {
   }
 
   // Connect if needed
-  if (!vobd.isConnected() && !ds_demoModeEnabled) {
+  if (!vobd.isConnected()) {
     ds_output->showStatusString_P(PSTR("Init"));
     ds_controls->smartDelay(500);
 
@@ -734,11 +802,17 @@ extern void VDisplayables::mainLoop() {
       case OBD_PROTOCOL_KWP_FAST: ds_output->showStatusString_P(PSTR("Fast")); ds_controls->smartDelay(300); ds_output->showStatusString_P(PSTR("2000")); break;
     }
 
-    vobd.connect(ds_testProtocol);
+    vobd.connect(ds_testProtocol,  ds_demoModeEnabled);
 
     ds_connecting = false; ds_showStatusState();
 
     if (vobd.isConnected()) {
+      if (!ds_persistedState.hasAutoScannedItems) {
+        ds_persistedState.hasAutoScannedItems = 1;
+        ds_savePersistedState();
+        ds_autoScanItems();
+      }
+
       ds_connectionErrorCount = 0; ds_requestErrorCount = 0; ds_showStatusState();
       showCurrentItem();
     }
@@ -767,9 +841,9 @@ extern void VDisplayables::mainLoop() {
   } 
 
   // Reset if not connected at end of loop
-  if (!vobd.isConnected() && !ds_demoModeEnabled) {
+  if (!vobd.isConnected()) {
       ds_connectionErrorCount++; ds_showStatusState();
-      ds_output->showStatusString_P(PSTR("Rset"));
+      ds_output->showStatusString_P(PSTR("\x02\x02\x02\x02"));
       ds_resetting = true; ds_showStatusState();
       vobd.resetConnection();
       ds_resetting = false; ds_showStatusState();
@@ -777,6 +851,7 @@ extern void VDisplayables::mainLoop() {
 }
 
 static unsigned long lastMillis = 0;
+static float lastDemoValue = 0;
 static float demoValue = 0;
 static bool demoValueIncrements;
 
@@ -791,10 +866,10 @@ extern bool VDisplayables::updateCurrentItemValue() {
   if (ds_demoModeEnabled) {
     int16_t min = (useAltUnits) ? disp->min2 : disp->min1;
     int16_t max = (useAltUnits) ? disp->max2 : disp->max1;
-    float step = (max-min)/50;
+    float step = (max-min)/50.0;
 
     ds_controls->smartDelay(100);
-    if (!random(100)) {
+    if (!random(50)) {
       demoValueIncrements = !demoValueIncrements;
     }
 
@@ -807,39 +882,47 @@ extern bool VDisplayables::updateCurrentItemValue() {
     }
 
     if (!demoValueIncrements) {
-      if (demoValue < min+step) demoValueIncrements = true;
+      if (demoValue < min+step) { demoValue = min+step; demoValueIncrements = true; }
       else demoValue -= step;
     } else {
-      if (demoValue > max-step) demoValueIncrements = false;
+      if (demoValue > max-step) { demoValue = max-step; demoValueIncrements = false; }
       else demoValue += step;
     }
 
-    ds_showDisplayableNumber(demoValue, disp, useAltUnits, suffix);
-    ds_showDisplayableBar(demoValue, disp, useAltUnits, false);
+    if (ds_persistedState.currentItemIndex == DISPLAYABLE_ITEM_AVERAGE_SPEED ||
+        ds_persistedState.currentItemIndex == DISPLAYABLE_ITEM_AVERAGE_EFFICIENCY) {
+      lastDemoValue = (20 * lastDemoValue + demoValue)/21;
+      ds_showDisplayableNumber(lastDemoValue, disp, useAltUnits, suffix);
+      ds_showDisplayableBar(lastDemoValue, disp, useAltUnits, false);
+      ds_showDisplayableBar(demoValue, disp, useAltUnits, true);
+    } else {
+      ds_showDisplayableNumber(demoValue, disp, useAltUnits, suffix);
+      ds_showDisplayableBar(demoValue, disp, useAltUnits, false);
+    }
     ds_output->showBar();
     ds_showStatusState();
     return true;
   }
 
   // Always fetch speed (in km/hr) and fuel consumption (in l/20hr) for accumulated values
-  vobd.sendPidRequest(0x0d, 1);
-  long speedValue = vobd.receivePidResponse(0x0d, 1, true, 0);
+  vobd.sendPidRequest(PID_SPEED, 1);
+  long speedValue = vobd.receivePidResponse(PID_SPEED, 1, true, 0);
   long mafValue = -1;
 
   // Speed should be supported by everything, so return error if no
   if (speedValue == -1) return false;
 
-  vobd.sendPidRequest(0x5e, 1);
-  long burnValue = vobd.receivePidResponse(0x5e, 1, false, 0); // swallow error silently as not critical
+  vobd.sendPidRequest(PID_BURN_VALUE, 1);
+  long burnValue = vobd.receivePidResponse(PID_BURN_VALUE, 1, false, 0); // swallow error silently as not critical
 
   // If burn value is not available, estimate from MAF
-  // - divide by 14.7 (idea air/fuel ratio) to get g/s of gas
+  // - divide by 14.7 (ideal air/fuel ratio) to get g/s of gas
   // - multiply by 3600 to get g/hour of gas
   // - divide by 740g/l to get l/hour of gas
   // - divide by 5 for difference between burn/maf rate formula divisors
   if (burnValue < 0 || (burnValue == 0 && speedValue > 0)) {
-    vobd.sendPidRequest(0x10, 1);
-    mafValue = vobd.receivePidResponse(0x10, 1, false, 0);
+    vobd.sendPidRequest(PID_MAF, 1);
+    mafValue = vobd.receivePidResponse(PID_MAF, 1, false, 0);
     if (mafValue >= 0) {
       burnValue = ((float)mafValue * 3600.0) / (14.7 * 740 * 5);
     }
@@ -887,7 +970,7 @@ extern bool VDisplayables::updateCurrentItemValue() {
       fvalue2 = (speedValue > 0) ? speedValue : 0;
       break;
 
-    case DISPLAYABLE_ITEM_TOTAL_EFFICIENCY:
+    case DISPLAYABLE_ITEM_AVERAGE_EFFICIENCY:
       if (useAltUnits) {
         fvalue = (ds_persistedState.totalConsumedFuelLitres <= 0) ? 0 : ds_persistedState.totalDrivenKilometers / ds_persistedState.totalConsumedFuelLitres / ds_persistedState.fuelAdjustment;
         fvalue2 = (speedValue < 0) ? 0 : (burnValue <= 0) ? 0 : speedValue / (burnValue / 20.0) / ds_persistedState.fuelAdjustment;
@@ -905,12 +988,17 @@ extern bool VDisplayables::updateCurrentItemValue() {
       long value = -1;
 
       // Use previously fetched speed value if available
-      if (disp->pid == 0x0d && speedValue >= 0) {
+      if (disp->pid == PID_SPEED && speedValue >= 0) {
         value = speedValue;
       }
 
+      // Use previously fetched maf value if available
+      if (disp->pid == PID_MAF && mafValue >= 0) {
+        value = mafValue;
+      }
+
       // Use previously fetched burn value if available
-      else if (disp->pid == 0x5e && burnValue >= 0) {
+      else if (disp->pid == PID_BURN_VALUE && burnValue >= 0) {
         value = (float)burnValue * ds_persistedState.fuelAdjustment;
       }
 

@@ -1,10 +1,17 @@
-#include "TM1637Display.h"
+#include "Environment.h"
 #include "VDigits.h"
+
+#if WOKWI
+#include "TM1637TinyDisplay.h"
+#define TM1637Display TM1637TinyDisplay
+#else
+#include "TM1637Display.h"
+#endif
 
 #include <Arduino.h>
 
 ///////////////////////////////////////////////////////////////
-// VDIGITS
+// VDIGITS.CPP
 // Simple class to write alphanumeric characters to a TM1637
 ///////////////////////////////////////////////////////////////
 
@@ -31,7 +38,9 @@
 static const uint8_t dg_font[TABLE_SIZE] PROGMEM = {
   0,
   /* degree */ SEG_A | SEG_B | SEG_F | SEG_G,
-      0,0,0,  0,0,0,0,0,  0,0,0,0,0,
+  /* bars */ SEG_A | SEG_G | SEG_D,
+  /* top */ SEG_A,
+          0,  0,0,0,0,0,  0,0,0,0,0,
   0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,
   0,0,0,
 
@@ -39,7 +48,7 @@ static const uint8_t dg_font[TABLE_SIZE] PROGMEM = {
   /* " */ SEG_B | SEG_F,
   /* # */ 0,
   /* $ */ 0,
-  /* % */ 0,
+  /* % */ SEG_F | SEG_C,
   /* & */ 0,
   /* ' */ SEG_F,
   /* ( */ SEG_A | SEG_D | SEG_E | SEG_F,

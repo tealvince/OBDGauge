@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////
-// OBD
+// VOBD.H
 // Obd protocol handling
 ///////////////////////////////////////////////////////////////
 
@@ -87,7 +87,7 @@ class VObd {
 
     struct ObdOutputProvider *output;
 
-    int kwpSlowInit(int protocol);
+    int kwpSlowInit(int protocol, bool demoMode);
     int kwpFastInit(int protocol);
     unsigned char getChecksum(unsigned char *buf, int start, int end);
     void debugBytes(unsigned char *bytes, int byteCount, int minByteSpacing, int maxByteSpacing);
@@ -95,7 +95,7 @@ class VObd {
 
   public:
     void setup(int in, int out, void (*smartDelay)(unsigned long), struct ObdOutputProvider *optionalOutputProvider);
-    void connect(int proto);
+    void connect(int proto, bool demoMode);
     void disconnect();
     bool isConnected();
     void ping();

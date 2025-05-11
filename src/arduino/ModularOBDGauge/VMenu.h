@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////
-// VMENU
+// VMENU.H
 // Generalized menu handling
 ///////////////////////////////////////////////////////////////
 
@@ -16,6 +16,8 @@ struct MenuDataSource {
   bool  (*isItemHidden)(int index, MenuDataSource *);     // optional
   bool  (*longPressAction)(int index, int button, MenuDataSource *);  // optional
   bool  (*shortPressAction)(int index, int button, MenuDataSource *);  // optional
+  char defaultColor;
+
   int alternateCurrentItem;
   char **alternateTitles1;
   char **alternateTitles2;
@@ -23,7 +25,7 @@ struct MenuDataSource {
 };
 
 struct MenuDisplayProvider {
-  void  (*highlightItem)(int index, char color, int count);
+  void  (*highlightItem)(int index, char color, int count, char defaultColor);
   void  (*showItemTitle)(char *title);
 };
 

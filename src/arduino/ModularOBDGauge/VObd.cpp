@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 ///////////////////////////////////////////////////////////////
-// OBD
+// VOBD.CPP
 // Obd protocol handling
 ///////////////////////////////////////////////////////////////
 
@@ -31,11 +31,11 @@ extern void VObd::setup(int in, int out, void (*delay)(unsigned long), struct Ob
   smartDelay = delay;
 }
 
-extern void VObd::connect(int proto) {
+extern void VObd::connect(int proto, bool demoMode) {
   switch (proto) {
     case OBD_PROTOCOL_ISO_9141:
     case OBD_PROTOCOL_KWP_SLOW:
-      if (proto = kwpSlowInit(proto)) {
+      if (proto = kwpSlowInit(proto, demoMode)) {
         protocol = proto;
       }
       break;
@@ -185,11 +185,14 @@ extern int VObd::receivePidResponseData(unsigned char *outbuf, int maxBytes, uns
     if (isSniffing) return;
   }
   
-  if (byteCount < 3) {
-    if (output && showErrors) { output->showStatusString_P(PSTR("Cnt!")); smartDelay(500); output->showStatusInteger(byteCount); }
+  if (byteCount == 0) {
+    if (output && showErrors) { output->showStatusString_P(PSTR(" -- ")); smartDelay(400); }
     return -1;
   }
-
+  if (byteCount < 3) {
+    if (output && showErrors) { output->showStatusString_P(PSTR("Cnt!")); smartDelay(400); output->showStatusInteger(byteCount); smartDelay(100); }
+    return -1;
+  }
   int headerSize;
   switch (protocol) {
     case OBD_PROTOCOL_ISO_9141:
@@ -208,17 +211,23 @@ extern int VObd::receivePidResponseData(unsigned char *outbuf, int maxBytes, uns
 
   // Error - wrong # of bytes (minimum response should include mode + pid + data + checksum)
   if (byteCount < headerSize + (mode==3 ? 0 : pid ? 2 : 1) + 1) {
-    if (output && showErrors) { output->showStatusString_P(PSTR("Cnt!")); smartDelay(500); output->showStatusInteger(byteCount); }
+    if (output && showErrors) { output->showStatusString_P(PSTR("Cnt!")); smartDelay(400); output->showStatusInteger(byteCount); smartDelay(100); }
     return -1;
+  }
+
+  // Negative Acknowledgement
+  if (bytes[headerSize] == 0x7f) {
+    if (output && showErrors) { output->showStatusString_P(PSTR("NACK")); smartDelay(400); output->showStatusByte(bytes[headerSize+2]); smartDelay(100); }
+    return 0;
   }
 
   // Error - wrong SID
   if (bytes[headerSize] != (0x40 + mode)) {
-    if (output && showErrors) { output->showStatusString_P(PSTR("SID!")); smartDelay(500); output->showStatusByte(bytes[headerSize]); }
+    if (output && showErrors) { output->showStatusString_P(PSTR("SID!")); smartDelay(400); output->showStatusByte(bytes[headerSize]); smartDelay(100); }
     return -1;
   }
 
-  int valueStart = headerSize+1;
+  int valueStart = headerSize + 1;
   int valueEnd = byteCount-1;
   int count = valueEnd - valueStart;
   int outCount = 0;
@@ -226,7 +235,7 @@ extern int VObd::receivePidResponseData(unsigned char *outbuf, int maxBytes, uns
   // Read and confirm PID byte for mode 1 requests
   if (mode == 1) {
     if (bytes[valueStart++] != pid) {
-      if (output && showErrors) { output->showStatusString_P(PSTR("PID!")); smartDelay(500); output->showStatusByte(bytes[headerSize+1]); }
+      if (output && showErrors) { output->showStatusString_P(PSTR("PID!")); smartDelay(400); output->showStatusByte(bytes[headerSize+1]); smartDelay(100); }
       return -1;
     }
   } 
@@ -264,7 +273,7 @@ extern int VObd::receivePidResponseData(unsigned char *outbuf, int maxBytes, uns
 // Private
 //------------------------------------------------------
 
-int VObd::kwpSlowInit(int proto) {
+int VObd::kwpSlowInit(int proto, bool demoMode) {
 
   // W0
   vserial.waitForIdle(SLOW_INIT_IDLE_WAIT, SLOW_INIT_IDLE_TIMEOUT);
@@ -273,24 +282,37 @@ int VObd::kwpSlowInit(int proto) {
   vserial.sendBytes("\x33", 1, 5, QUERY_SEND_DELAY_BETWEEN_BYTES);
 
   unsigned char *bytes;
-  int byteCount = vserial.readBytes(&bytes, SLOW_INIT_SYNC_MESSAGE_TIMEOUT, SLOW_INIT_SYNC_BYTE_TIMEOUT, 10400, NULL, NULL);
+  int byteCount = 0;
+  
+  if (demoMode) {
+    byteCount = 3;
+    bytes[0] = 0x55;
+    bytes[1] = 0x08;
+    bytes[2] = 0x08;
+  } else {
+    byteCount = vserial.readBytes(&bytes, SLOW_INIT_SYNC_MESSAGE_TIMEOUT, SLOW_INIT_SYNC_BYTE_TIMEOUT, 10400, NULL, NULL);
+  }
 
   // Error - wrong # of bytes
+  if (byteCount == 0) {
+    if (output) output->showStatusString_P(PSTR(" -- "));
+    return 0;
+  }
   if (byteCount != 3) {
-    if (output) output->showStatusString_P(PSTR("Cnt!"));
+    if (output) { output->showStatusString_P(PSTR("Cnt!")); smartDelay(400); output->showStatusInteger(byteCount); }
     return 0;
   }
   
   // Error - wrong synchronization key
   if (bytes[0] != 0x55) {
-    if (output) { output->showStatusString_P(PSTR("Key!")); smartDelay(500); output->showStatusByte(bytes[0]); }
+    if (output) { output->showStatusString_P(PSTR("Key!")); smartDelay(400); output->showStatusByte(bytes[0]); }
     return 0;
   }
 
   // Delay before sending inverted response, excluding timeout from previous fetch
   smartDelay(SLOW_INIT_INVERSION_DELAY - SLOW_INIT_SYNC_BYTE_TIMEOUT);
 
-  char response[1];
+  unsigned char response[1];
   response[0] = ~bytes[2];
   vserial.sendBytes(response, 1, 10400, QUERY_SEND_DELAY_BETWEEN_BYTES);
 
@@ -299,19 +321,25 @@ int VObd::kwpSlowInit(int proto) {
   keyByte2 = bytes[2];
 
   // Wait for final ready ($CC for 9141.  Simulator returns $FF)
-  byteCount = vserial.readBytes(&bytes, SLOW_INIT_FINAL_MESSAGE_TIMEOUT, SLOW_INIT_FINAL_MESSAGE_TIMEOUT, 10400, NULL, NULL);
+  if (demoMode) {
+    byteCount = 1;
+    bytes[0] = 0xcc;
+  } else {
+    byteCount = vserial.readBytes(&bytes, SLOW_INIT_FINAL_MESSAGE_TIMEOUT, SLOW_INIT_FINAL_MESSAGE_TIMEOUT, 10400, NULL, NULL);
+  }
 
   if (output) { 
     char buf[6];
     snprintf(buf, 6, "%02X%02X", (int)keyByte1, (int)keyByte2);
     output->showStatusString(buf);
     smartDelay(500);
-    output->showStatusByte(response[0]);
+    snprintf(buf, 6, "\x03%02X\x03", (int)response[0]);
+    output->showStatusString(buf);
     smartDelay(500);
     if (byteCount < 1) {
       output->showStatusString_P(PSTR("Ack!")); smartDelay(500); output->showStatusInteger(byteCount);      
     } else {
-      snprintf(buf, 5, "-%02X-", (int)bytes[0]);
+      snprintf(buf, 5, "_%02X_", (int)bytes[0]);
       output->showStatusString(buf);
     }
   }
@@ -354,14 +382,18 @@ int VObd::kwpFastInit(int proto) {
   int byteCount = vserial.readBytes(&bytes,  QUERY_RECEIVE_MESSAGE_TIMEOUT, QUERY_RECEIVE_BYTE_TIMEOUT, 10400, NULL, NULL);
 
   // Error - wrong # of bytes
+  if (byteCount == 0) {
+    if (output) { output->showStatusString_P(PSTR(" -- ")); smartDelay(400); }
+    return 0;
+  }
   if (byteCount < 5) {
-    if (output) { output->showStatusString_P(PSTR("Cnt!")); smartDelay(500); output->showStatusInteger(byteCount); }
+    if (output) { output->showStatusString_P(PSTR("Cnt!")); smartDelay(400); output->showStatusInteger(byteCount); smartDelay(100); }
     return 0;
   }
   
   // Error - wrong keyword
   if (bytes[3] != 0xC1) {
-    if (output) { output->showStatusString_P(PSTR("Kwd!")); smartDelay(500); output->showStatusByte(bytes[3]); }
+    if (output) { output->showStatusString_P(PSTR("Kwd!")); smartDelay(400); output->showStatusByte(bytes[3]); smartDelay(100); }
     return 0;
   }
   return proto;

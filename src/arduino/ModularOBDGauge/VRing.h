@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////
-// VRING
+// VRING.H
 // Simple class to write colors to an Adafruit_NeoPixel
 ///////////////////////////////////////////////////////////////
 
@@ -37,12 +37,10 @@
 class VRing {
   public:
     void setup(int pin, int count, int brightness, int rotationOffset);
-    int  getBrightness();
     void setBrightness(int brightness);
     void setPixelColor(int i, char color);
     void show();
     void showDemo();
-    void showColors(bool dim);
     void clear();
 };
 

@@ -1,10 +1,11 @@
-#include <Adafruit_NeoPixel.h>
+#include "Environment.h"
 #include "VRing.h"
 
+#include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
 
 ///////////////////////////////////////////////////////////////
-// VRING
+// VRING.CPP
 // Simple class to write colors to an Adafruit_NeoPixel
 ///////////////////////////////////////////////////////////////
 
@@ -29,17 +30,17 @@ extern void VRing::setup(int pin, int count, int brightness, int rotationOffset)
   setBrightness(brightness);
 }
 
-extern int VRing::getBrightness() {
-  return rn_brightness;
-}
-
 extern void VRing::setBrightness(int brightness) {
   rn_brightness = brightness;
   ring.setBrightness(brightness*6);
 }
 
 extern void VRing::setPixelColor(int i, char color) {
+#if WOKWI
+  float dim = 1.2;
+#else
   int dim = 4;
+#endif
   i = (i+rn_rotationOffset) % ring.numPixels();
 
   switch (color) {               // g     r     b
@@ -77,22 +78,6 @@ extern void VRing::setPixelColor(int i, char color) {
 
 extern void VRing::show() {
   ring.show();
-}
-
-extern void VRing::showColors(bool dim) {
-  setPixelColor(0, dim ? 'W' : 'w');
-  setPixelColor(1, dim ? 'R' : 'r');
-  setPixelColor(2, dim ? 'N' : 'n');
-  setPixelColor(3, dim ? 'O' : 'o');
-  setPixelColor(4, dim ? 'Y' : 'y');
-  setPixelColor(5, dim ? 'L' : 'l');
-  setPixelColor(6, dim ? 'G' : 'g');
-  setPixelColor(7, dim ? 'C' : 'c');
-  setPixelColor(8, dim ? 'B' : 'b');
-  setPixelColor(9, dim ? 'I' : 'i');
-  setPixelColor(10, dim ? 'P' : 'p');
-  setPixelColor(11, dim ? 'V' : 'v');
-  ring.show();            
 }
 
 extern void VRing::showDemo() {
