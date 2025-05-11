@@ -1,4 +1,4 @@
-# OBD Super Gauge
+# vOBD - K-line Super Gauge
 By Vince Lee (c)2024-2025
 
 ## Description
@@ -105,8 +105,16 @@ The gauge software is written in C++ with minimal libraries to drive the LED dis
 Serial communication is done with raw bit banging, implementing serial port communication 
 in software timed off the arduino microsecond timer.
 
+## Testing
+
+Software can be tested in simulation (no ECU or ECU interface) in the following WOKWI
+link.  Recommend enabling Demo Mode from the settings menu:
+
+https://wokwi.com/projects/430523461712229377
+
 ## Case
 
 The case and internal spacers and supports are 3D printed.  Stl files are included, as 
 well as an svg for the front glass with laser cut holes for the buttons.
+
 
