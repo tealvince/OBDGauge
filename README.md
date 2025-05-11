@@ -3,9 +3,9 @@ By Vince Lee (c)2024-2025
 
 ## Description
 
-This project is a custom OBD cluster gauge and experimentation platform for ECUs with a k-line interface
-driven by an Arduino nano and intended
-to be installed in a 2" diameter circular pod.
+This project is a custom OBD cluster gauge and experimentation platform for ECUs 
+with a k-line interface, driven by an Arduino nano and intended to be installed 
+in a 2" diameter circular pod.
 
 ![prototype](https://github.com/tealvince/OBDGauge/blob/main/gauge.jpg?raw=true)
 
@@ -108,8 +108,9 @@ in software timed off the arduino microsecond timer.
 
 ## Testing
 
-Software can be tested in simulation (no ECU or ECU interface) in the following WOKWI
-link.  Recommend enabling Demo Mode from the settings menu:
+Try out the software or expriment with code changes in a simulated environment using
+the following  WOKWI project.  Recommend enabling Demo Mode from the settings menu
+since the ECU itself is not simulated:
 
 https://wokwi.com/projects/430523461712229377
 
@@ -125,6 +126,6 @@ Case parts include:
 * case rear (3d printed)
 * light mask for led ring (3d printed)
 * button extensions (3d printed)
-* left and right led digit supports (3d printed)
-* led ring support (3d printed)
+* left and right led digit spacers/supports (3d printed)
+* led ring spacer/support (3d printed)
 
