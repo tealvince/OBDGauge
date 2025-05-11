@@ -94,10 +94,11 @@ voltages.  The output of the "write" comparator goes to a PNP transistor to pull
 low when sending data back to the PCM, safely sinking more current than the comparator 
 can on its own.
 
-To power the arduino, the 12V OBD output is fed to a 9V voltage regulator, which in turn 
-feeds in built-in regulator on the Arduino nano.  the extra regulator adds a layer of
-safety against power fluctions over 12V.  A large capacitor briefly keeps the unit
-running long enough to save state to persistent memory on power-off.
+To power the arduino, an ignition-switched 12V output is fed to a 9V voltage regulator, 
+which in turn feeds in built-in regulator on the Arduino nano.  The extra regulator adds
+an extra layer of safety against over-voltage fluctuations since the arduino regulator
+is only rated to 12V.  A large capacitor briefly keeps the unit running long enough to 
+save state to persistent memory after the ignition is turned off.
 
 ## Software
 
@@ -117,4 +118,13 @@ https://wokwi.com/projects/430523461712229377
 The case and internal spacers and supports are 3D printed.  Stl files are included, as 
 well as an svg for the front glass with laser cut holes for the buttons.
 
+Case parts include:
+
+* front glass (laser cut acrylic)
+* case body (3d printed)
+* case rear (3d printed)
+* light mask for led ring (3d printed)
+* button extensions (3d printed)
+* left and right led digit supports (3d printed)
+* led ring support (3d printed)
 
