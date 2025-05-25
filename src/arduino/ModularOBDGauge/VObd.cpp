@@ -282,10 +282,12 @@ int VObd::kwpSlowInit(int proto, bool demoMode) {
   vserial.sendBytes("\x33", 1, 5, QUERY_SEND_DELAY_BETWEEN_BYTES);
 
   unsigned char *bytes;
+  char bytesBuf[3];
   int byteCount = 0;
   
   if (demoMode) {
     byteCount = 3;
+    bytes = bytesBuf;
     bytes[0] = 0x55;
     bytes[1] = 0x08;
     bytes[2] = 0x08;
@@ -293,11 +295,6 @@ int VObd::kwpSlowInit(int proto, bool demoMode) {
     byteCount = vserial.readBytes(&bytes, SLOW_INIT_SYNC_MESSAGE_TIMEOUT, SLOW_INIT_SYNC_BYTE_TIMEOUT, 10400, NULL, NULL);
   }
 
-  // Error - wrong # of bytes
-  if (byteCount == 0) {
-    if (output) output->showStatusString_P(PSTR(" -- "));
-    return 0;
-  }
   if (byteCount != 3) {
     if (output) { output->showStatusString_P(PSTR("Cnt!")); smartDelay(400); output->showStatusInteger(byteCount); }
     return 0;
@@ -422,15 +419,15 @@ void VObd::debugBytes(unsigned char *bytes, int byteCount, int minByteSpacing, i
     }
     smartDelay(500);
 
-    if (minByteSpacing >= 0) {
-      output->showStatusString_P(PSTR("LoP="));
-      output->showStatusInteger(minByteSpacing);
-    }
-    if (maxByteSpacing >= 0) {
-      output->showStatusString_P(PSTR("HiP="));
-      output->showStatusInteger(maxByteSpacing);
-    }
-    smartDelay(500);
+    // if (minByteSpacing >= 0) {
+    //   output->showStatusString_P(PSTR("LoP="));
+    //   output->showStatusInteger(minByteSpacing);
+    // }
+    // if (maxByteSpacing >= 0) {
+    //   output->showStatusString_P(PSTR("HiP="));
+    //   output->showStatusInteger(maxByteSpacing);
+    // }
+    // smartDelay(500);
 
     lastPidRequestTime = millis();  // Note, ECU may time us out
     autoPidRequestDisabled = false;

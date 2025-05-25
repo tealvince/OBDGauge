@@ -123,8 +123,8 @@ static int  ds_lastItemIndex;
 static int  ds_powerAnalogPin;
 static bool ds_connecting;
 static bool ds_resetting;
-static bool ds_debugModeEnabled;
-static bool ds_demoModeEnabled;
+static bool ds_debugModeEnabled = DEBUG_DEFAULT_VALUE;
+static bool ds_demoModeEnabled = DEMO_DEFAULT_VALUE;
 static int ds_testProtocol = OBD_PROTOCOL_FIRST - 1;
 static struct DisplayablesOutputProvider *ds_output;
 static struct MenuControlsProvider *ds_controls;
@@ -720,9 +720,6 @@ extern void VDisplayables::setup(int inPin, int outPin, int powerAnalogPin, stru
   long end = start + 3000;
   int barCount = ds_output->getBarCount();
 
-  ds_debugModeEnabled = false;
-  ds_demoModeEnabled = false;
-
   // Hold buttons for hard memory reset
   while(1) {
     long time = millis();
@@ -879,6 +876,8 @@ extern bool VDisplayables::updateCurrentItemValue() {
       case DISPLAYABLE_ITEM_TOTAL_FUEL:
         demoValueIncrements = true;
         step /= 700;
+      case DISPLAYABLE_ITEM_BATTERY_VOLTS:
+        demoValue = analogRead(ds_powerAnalogPin) * 5.0 * BATTERY_VOLTAGE_DIVIDE / 1023.0;
     }
 
     if (!demoValueIncrements) {
@@ -892,128 +891,125 @@ extern bool VDisplayables::updateCurrentItemValue() {
     if (ds_persistedState.currentItemIndex == DISPLAYABLE_ITEM_AVERAGE_SPEED ||
         ds_persistedState.currentItemIndex == DISPLAYABLE_ITEM_AVERAGE_EFFICIENCY) {
       lastDemoValue = (20 * lastDemoValue + demoValue)/21;
-      ds_showDisplayableNumber(lastDemoValue, disp, useAltUnits, suffix);
-      ds_showDisplayableBar(lastDemoValue, disp, useAltUnits, false);
-      ds_showDisplayableBar(demoValue, disp, useAltUnits, true);
+      fvalue = lastDemoValue;
+      fvalue2 = demoValue;
     } else {
-      ds_showDisplayableNumber(demoValue, disp, useAltUnits, suffix);
-      ds_showDisplayableBar(demoValue, disp, useAltUnits, false);
+      fvalue = demoValue;
     }
-    ds_output->showBar();
-    ds_showStatusState();
-    return true;
-  }
+    
+  } else {
 
-  // Always fetch speed (in km/hr) and fuel consumption (in l/20hr) for accumulated values
-  vobd.sendPidRequest(PID_SPEED, 1);
-  long speedValue = vobd.receivePidResponse(PID_SPEED, 1, true, 0);
-  long mafValue = -1;
+    // Always fetch speed (in km/hr) and fuel consumption (in l/20hr) for accumulated values
+    vobd.sendPidRequest(PID_SPEED, 1);
+    long speedValue = vobd.receivePidResponse(PID_SPEED, 1, true, 0);
+    long mafValue = -1;
 
-  // Speed should be supported by everything, so return error if no
-  if (speedValue == -1) return false;
+    // Speed should be supported by everything, so return error if no
+    if (speedValue == -1) return false;
 
-  vobd.sendPidRequest(PID_BURN_VALUE, 1);
-  long burnValue = vobd.receivePidResponse(PID_BURN_VALUE, 1, false, 0); // swallow error silently as not critical
+    vobd.sendPidRequest(PID_BURN_VALUE, 1);
+    long burnValue = vobd.receivePidResponse(PID_BURN_VALUE, 1, false, 0); // swallow error silently as not critical
 
-  // If burn value is not available, estimate from MAF
-  // - divide by 14.7 (ideal air/fuel ratio) to get g/s of gas
-  // - multiply by 3600 to get g/hour of gas
-  // - divide by 740g/l to get l/hour of gas
-  // - divide by 5 for difference between burn/maf rate formula divisors
-  if (burnValue < 0 || (burnValue == 0 && speedValue > 0)) {
-    vobd.sendPidRequest(PID_MAF, 1);
-    mafValue = vobd.receivePidResponse(PID_MAF, 1, false, 0);
-    if (mafValue >= 0) {
-      burnValue = ((float)mafValue * 3600.0) / (14.7 * 740 * 5);
+    // If burn value is not available, estimate from MAF
+    // - divide by 14.7 (ideal air/fuel ratio) to get g/s of gas
+    // - multiply by 3600 to get g/hour of gas
+    // - divide by 740g/l to get l/hour of gas
+    // - divide by 5 for difference between burn/maf rate formula divisors
+    if (burnValue < 0 || (burnValue == 0 && speedValue > 0)) {
+      vobd.sendPidRequest(PID_MAF, 1);
+      mafValue = vobd.receivePidResponse(PID_MAF, 1, false, 0);
+      if (mafValue >= 0) {
+        burnValue = ((float)mafValue * 3600.0) / (14.7 * 740 * 5);
+      }
     }
-  }
 
-  // Update accumulated values
-  if (lastMillis && ms > lastMillis) {
-    ds_persistedState.totalElapsedSeconds += ((double)(ms - lastMillis))/1000.0;
-    if (speedValue > 0) {
-      ds_persistedState.totalDrivenKilometers += ((double)(ms - lastMillis))*speedValue/3600000.0;
+    // Update accumulated values
+    if (lastMillis && ms > lastMillis) {
+      ds_persistedState.totalElapsedSeconds += ((double)(ms - lastMillis))/1000.0;
+      if (speedValue > 0) {
+        ds_persistedState.totalDrivenKilometers += ((double)(ms - lastMillis))*speedValue/3600000.0;
+      }
+      if (burnValue > 0) {
+        ds_persistedState.totalConsumedFuelLitres += ((double)(ms - lastMillis))*burnValue/3600000.0/20.0;
+      }
     }
-    if (burnValue > 0) {
-      ds_persistedState.totalConsumedFuelLitres += ((double)(ms - lastMillis))*burnValue/3600000.0/20.0;
-    }
-  }
-  lastMillis = ms;
+    lastMillis = ms;
 
-  switch (ds_persistedState.currentItemIndex) {
-    case DISPLAYABLE_ITEM_TOTAL_DISTANCE:
-      fvalue = ds_persistedState.totalDrivenKilometers;
-      break;
+    switch (ds_persistedState.currentItemIndex) {
+      case DISPLAYABLE_ITEM_TOTAL_DISTANCE:
+        fvalue = ds_persistedState.totalDrivenKilometers;
+        break;
 
-    case DISPLAYABLE_ITEM_TOTAL_TIME:
-      fvalue = ds_persistedState.totalElapsedSeconds;
-      fvalue2 = ((long)ds_persistedState.totalElapsedSeconds % 13) * 60.0 / 13;
-      suffix = 's';
-      if (fvalue > 60) {
-        fvalue /= 60;
-        suffix = 'm';
+      case DISPLAYABLE_ITEM_TOTAL_TIME:
+        fvalue = ds_persistedState.totalElapsedSeconds;
+        fvalue2 = ((long)ds_persistedState.totalElapsedSeconds % 13) * 60.0 / 13;
+        suffix = 's';
         if (fvalue > 60) {
           fvalue /= 60;
-          suffix = 'h';
+          suffix = 'm';
+          if (fvalue > 60) {
+            fvalue /= 60;
+            suffix = 'h';
+          }
         }
-      }
-      // Convert fraction to fraction of 60
-      fvalue = floor(fvalue) + (fvalue-floor(fvalue))*60.0/100.0;
-      break;
-      
-    case DISPLAYABLE_ITEM_TOTAL_FUEL:
-      fvalue = ds_persistedState.totalConsumedFuelLitres * ds_persistedState.fuelAdjustment;
-      break;
+        // Convert fraction to fraction of 60
+        fvalue = floor(fvalue) + (fvalue-floor(fvalue))*60.0/100.0;
+        break;
+        
+      case DISPLAYABLE_ITEM_TOTAL_FUEL:
+        fvalue = ds_persistedState.totalConsumedFuelLitres * ds_persistedState.fuelAdjustment;
+        break;
 
-    case DISPLAYABLE_ITEM_AVERAGE_SPEED:
-      fvalue = ds_persistedState.totalDrivenKilometers/ds_persistedState.totalElapsedSeconds*3600.0;
-      fvalue2 = (speedValue > 0) ? speedValue : 0;
-      break;
+      case DISPLAYABLE_ITEM_AVERAGE_SPEED:
+        fvalue = ds_persistedState.totalDrivenKilometers/ds_persistedState.totalElapsedSeconds*3600.0;
+        fvalue2 = (speedValue > 0) ? speedValue : 0;
+        break;
 
-    case DISPLAYABLE_ITEM_AVERAGE_EFFICIENCY:
-      if (useAltUnits) {
-        fvalue = (ds_persistedState.totalConsumedFuelLitres <= 0) ? 0 : ds_persistedState.totalDrivenKilometers / ds_persistedState.totalConsumedFuelLitres / ds_persistedState.fuelAdjustment;
-        fvalue2 = (speedValue < 0) ? 0 : (burnValue <= 0) ? 0 : speedValue / (burnValue / 20.0) / ds_persistedState.fuelAdjustment;
-      } else {
-        fvalue = (ds_persistedState.totalDrivenKilometers <= 0) ? 0 : ds_persistedState.totalConsumedFuelLitres / ds_persistedState.totalDrivenKilometers * ds_persistedState.fuelAdjustment;
-        fvalue2 = (speedValue <= 0) ? 100000.0 : (burnValue / 20.0) / speedValue * ds_persistedState.fuelAdjustment;
-      }
-      break;
+      case DISPLAYABLE_ITEM_AVERAGE_EFFICIENCY:
+        if (useAltUnits) {
+          fvalue = (ds_persistedState.totalConsumedFuelLitres <= 0) ? 0 : ds_persistedState.totalDrivenKilometers / ds_persistedState.totalConsumedFuelLitres / ds_persistedState.fuelAdjustment;
+          fvalue2 = (speedValue < 0) ? 0 : (burnValue <= 0) ? 0 : speedValue / (burnValue / 20.0) / ds_persistedState.fuelAdjustment;
+        } else {
+          fvalue = (ds_persistedState.totalDrivenKilometers <= 0) ? 0 : ds_persistedState.totalConsumedFuelLitres / ds_persistedState.totalDrivenKilometers * ds_persistedState.fuelAdjustment;
+          fvalue2 = (speedValue <= 0) ? 100000.0 : (burnValue / 20.0) / speedValue * ds_persistedState.fuelAdjustment;
+        }
+        break;
 
-    case DISPLAYABLE_ITEM_BATTERY_VOLTS:
-      fvalue = analogRead(ds_powerAnalogPin) * 5.0 * BATTERY_VOLTAGE_DIVIDE / 1023.0;
-      break;
+      case DISPLAYABLE_ITEM_BATTERY_VOLTS:
+        fvalue = analogRead(ds_powerAnalogPin) * 5.0 * BATTERY_VOLTAGE_DIVIDE / 1023.0;
+        break;
 
-    default:
-      long value = -1;
+      default:
+        long value = -1;
 
-      // Use previously fetched speed value if available
-      if (disp->pid == PID_SPEED && speedValue >= 0) {
-        value = speedValue;
-      }
+        // Use previously fetched speed value if available
+        if (disp->pid == PID_SPEED && speedValue >= 0) {
+          value = speedValue;
+        }
 
-      // Use previously fetched maf value if available
-      if (disp->pid == PID_MAF && mafValue >= 0) {
-        value = mafValue;
-      }
+        // Use previously fetched maf value if available
+        if (disp->pid == PID_MAF && mafValue >= 0) {
+          value = mafValue;
+        }
 
-      // Use previously fetched burn value if available
-      else if (disp->pid == PID_BURN_VALUE && burnValue >= 0) {
-        value = (float)burnValue * ds_persistedState.fuelAdjustment;
-      }
+        // Use previously fetched burn value if available
+        else if (disp->pid == PID_BURN_VALUE && burnValue >= 0) {
+          value = (float)burnValue * ds_persistedState.fuelAdjustment;
+        }
 
-      // Else get PID value
-      else {
-        vobd.sendPidRequest(disp->pid, 1);
-        // Just return 0 if PID is not supported, as some are optional
-        value = vobd.receivePidResponse(disp->pid, 1, true, ds_debugModeEnabled);
-        if (value == -1) return 0;
-      }
+        // Else get PID value
+        else {
+          vobd.sendPidRequest(disp->pid, 1);
+          // Just return 0 if PID is not supported, as some are optional
+          value = vobd.receivePidResponse(disp->pid, 1, true, ds_debugModeEnabled);
+          if (value == -1) return 0;
+        }
 
-      // Offset and scale value
-      value = (unsigned long)value >> disp->shift;
-      value &= disp->mask;
-      fvalue = (float)value;
+        // Offset and scale value
+        value = (unsigned long)value >> disp->shift;
+        value &= disp->mask;
+        fvalue = (float)value;
+    }
   }
 
   // Show primary number and graph
