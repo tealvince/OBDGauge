@@ -20,6 +20,7 @@ struct SettingsDataSource {
   void (*showDtcCodes)(void);
   void (*clearDtcCodes)(void);
   void (*setFuelAdjustment)(void);
+  void (*toggleLoopMode)(void);
   void (*toggleDemoMode)(void);
   void (*toggleDebugMode)(void);
   void (*enterSniffMode)(int mode);

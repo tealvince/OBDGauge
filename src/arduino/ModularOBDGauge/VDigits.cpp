@@ -33,17 +33,25 @@
 #define SEG_DOT (SEG_G << 1)
 #endif
 
-#define TABLE_SIZE 128
+#define FONT_SPECIAL_START 1
+#define FONT_SPECIAL_COUNT 3
+#define FONT_NORMAL_START ('!')
+#define FONT_NORMAL_COUNT ('~' - FONT_NORMAL_START + 1)
+
+#define TABLE_SIZE (FONT_SPECIAL_COUNT + FONT_NORMAL_COUNT + 1)
+#define FONT_INDEX(_c) ((int)(_c) >= FONT_NORMAL_START && (int)(_c) < FONT_NORMAL_START + FONT_NORMAL_COUNT ? 1 + FONT_SPECIAL_COUNT + (int)(_c) - FONT_NORMAL_START : (int)(_c) < FONT_SPECIAL_START + FONT_SPECIAL_COUNT ? (int)(_c)- FONT_SPECIAL_START + 1 : 0)
 
 static const uint8_t dg_font[TABLE_SIZE] PROGMEM = {
   0,
+
+  // Special
+
   /* degree */ SEG_A | SEG_B | SEG_F | SEG_G,
   /* bars */ SEG_A | SEG_G | SEG_D,
   /* top */ SEG_A,
-          0,  0,0,0,0,0,  0,0,0,0,0,
-  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,
-  0,0,0,
 
+  // Normal
+  
   /* ! */ SEG_A | SEG_B | SEG_D | SEG_F | SEG_G,
   /* " */ SEG_B | SEG_F,
   /* # */ 0,
@@ -153,7 +161,7 @@ extern void VDigits::setup(int clockPin, int dataPin) {
 }
 
 extern void VDigits::showChar(int pos, unsigned char c, bool addDot) {
-    uint8_t segment = pgm_read_byte_near(dg_font + c);
+    uint8_t segment = pgm_read_byte_near(dg_font + FONT_INDEX(c));
     if (addDot) {
       segment |= SEG_DOT;
     }
@@ -161,20 +169,25 @@ extern void VDigits::showChar(int pos, unsigned char c, bool addDot) {
 }
 
 extern void VDigits::showString(unsigned char *text, bool addDots) {
+  // Compensate for WOKWI LED only having center dot (clock LED)
+#if DIGITS_TYPE_CLOCK
+  if (addDots && text[0] == ' ' && text[1] && text[1] != '.' && text[2] && text[2] != '.'  && text[3] == '.') {
+    text++;
+  }
+#endif
+
   for (int i=0; i<MAX_DIGITS; i++) {
     unsigned char c = *text;
     if (c) {
       text++;
     }
 
-    if (c<TABLE_SIZE) {
-      unsigned char font = pgm_read_byte_near(dg_font+c);
-      if (addDots && c != '.' && *text == '.') {
-        text++;
-        font |= pgm_read_byte_near(dg_font+'.');
-      }
-      dg_display->setSegments(&font, 1, i);
+    unsigned char font = pgm_read_byte_near(dg_font + FONT_INDEX(c));
+    if (addDots && c != '.' && *text == '.') {
+      text++;
+      font |= SEG_DOT;
     }
+    dg_display->setSegments(&font, 1, i);
   }
 }
 

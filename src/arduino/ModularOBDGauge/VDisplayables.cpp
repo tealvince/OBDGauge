@@ -10,6 +10,8 @@
 #define FUEL_ADJUST_MAX 10.00
 #define FUEL_ADJUST_DELTA 0.01
 
+#define LOOP_IDLE_CYCLE_MILLIS  10000
+
 #if BOARD_REV1
   #define BATTERY_VOLTAGE_DIVIDE (30+10)/10 // REV 1 board
 #else
@@ -29,9 +31,9 @@ struct DisplayableItem {
   char menuColor;
   char spotColor;
   char colors[14];
-  char name[7];
-  char unit1[7];
-  char unit2[7];
+  char name[6];
+  char unit1[5];
+  char unit2[5];
   char suffix;
   bool addPlus;
   bool centered;
@@ -74,7 +76,7 @@ struct DisplayableItem {
 #define DISPLAYABLE_ITEM_AIR_FUEL_EQRATIO   17
 #define DISPLAYABLE_ITEM_OXY_SENSOR_VOLTS   18
 
-#define DISPLAYABLE_ITEM_COUNT 19
+#define DISPLAYABLE_ITEM_COUNT 21
 
 static const DisplayableItem menu_rawDisplayables[] PROGMEM = {
   // Sensor
@@ -91,22 +93,25 @@ static const DisplayableItem menu_rawDisplayables[] PROGMEM = {
 
   // Bank1
   // mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
-  { 'g',  0, "GGGGGGGGGGGGG",   "SPED",    "KPH",  "MPH",   ' ', false, false, 0, 0x0d, 0,  0xffff,   0,    1,     1,   0, 621,  1000,    0,  200,   0,  120 },
+  { 'g',  0, "GGGGGGGGGGGGG",   "SPED",    "KPH",  "MPH",   ' ', false, false, 0, 0x0d, 0,  0x00ff,   0,    1,     1,   0, 621,  1000,    0,  200,   0,  120 },
   { 'y',  0, "yyyyyyyyyoorr",   "TACH",    "RPM",     "",     0, false, false, 0, 0x0c, 0,  0xffff,   0,    1,     4,   0,   1,     1,    0, 7000,   0, 7000 },
-  { 'c',  0, "cccccgggorrrr",   "COOL",   " \1C", " \1F",  '\1', false, false, 0, 0x05, 0,  0xffff, -40,    1,     1, -22,   9,     5,   38,  150, 100,  300 },
-  { 'W',  0, "WWWWWWWWWWWWW",  "A.Prs",   "K.PA",   "PSI",  ' ', false, false, 0, 0x0B, 0,  0xffff,   0,    1,     1,   0, 145,  1000,    0,  210,   0,   30 },
+  { 'c',  0, "cccccgggorrrr",   "COOL",   " \1C", " \1F",  '\1', false, false, 0, 0x05, 0,  0x00ff, -40,    1,     1, -22,   9,     5,   38,  150, 100,  300 },
+  { 'W',  0, "WWWWWWWWWWWWW",  "A.Prs",   "K.PA",   "PSI",  ' ', false, false, 0, 0x0B, 0,  0x00ff,   0,    1,     1,   0, 145,  1000,    0,  210,   0,   30 },
   { 'w',  0, "WWWWWWWWWWWWW",  "A.Flo",    "g/S", "Lb/m",     0, false, false, 1, 0x10, 0,  0xffff,   0,    1,   100,   0, 132, 100000,   0,  400,   0,   50 },
-  { 'c',  0, "ccccccccccccc",   "THRO",   "pct.",     "",   '%', false, false, 0, 0x11, 0,  0xffff,   0,  100,   255,   0,   1,      1,   0,  100,   0,  100 },
+  { 'c',  0, "ccccccccccccc",   "THRO",   "pct.",     "",   '%', false, false, 0, 0x11, 0,  0x00ff,   0,  100,   255,   0,   1,      1,   0,  100,   0,  100 },
 
   // Bank2
   // mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
-  { 'y',  0, "yyyyooooorrrr",   "ENG.",   "LOAD",     "",   '%', false, false, 0, 0x04, 0,  0xffff,   0,  100,   255,   0,   1,      1,   0,  100,   0,  100 },
-  { 'n',  0, "nnnnnnwoooooo",   "TIME",  "Advc.",     "",  '\1', false, true,  1, 0x0E, 0,  0xffff,-128,    1,     2,   0,   1,      1, -45,   45, -45,   45 },
-  { 'w',  0, "WWWWWWWWWWWWW",  "AirT.",   " \1C", " \1F",  '\1', false, false, 0, 0x0F, 0,  0xffff, -40,    1,     1, -22,   9,      5,  20,  100,  70,  200 },
-  { 'o',  0, "ooooooooooooo",   "TANK",   "LevL",     "",   '%', false, false, 0, 0x2F, 0,  0xffff,   0,    1,     1,   0,   1,      1,   0,  100 ,  0,  100 },
+  { 'y',  0, "yyyyooooorrrr",   "ENG.",   "LOAD",     "",   '%', false, false, 0, 0x04, 0,  0x00ff,   0,  100,   255,   0,   1,      1,   0,  100,   0,  100 },
+  { 'n',  0, "nnnnnnwoooooo",   "TIME",  "Advc.",     "",  '\1', false, true,  1, 0x0E, 0,  0x00ff,-128,    1,     2,   0,   1,      1, -45,   45, -45,   45 },
+  { 'w',  0, "WWWWWWWWWWWWW",  "AirT.",   " \1C", " \1F",  '\1', false, false, 0, 0x0F, 0,  0x00ff, -40,    1,     1, -22,   9,      5,  20,  100,  70,  200 },
+  { 'o',  0, "ooooooooooooo",   "TANK",   "LevL",     "",   '%', false, false, 0, 0x2F, 0,  0x00ff,   0,  100,   255,   0, 100,    255,   0,  100 ,  0,  100 },
   { 'R',  0, "RRRRRRRRRRRRR",   "Burn",    "L/h",  "g/h",   ' ', false, false, 1, 0x5E, 0,  0xffff,   0,    1,    20,   0, 264,  20000,   0,   40,   0,   10 },
-  { 'n',  0, "ppppppwyyyyyy",    "A/F",   "Rtio",     "",     0, false, true,  2, 0x24, 16, 0xffff,   0,    2, 65536,   0,   1,      1,   0,    2,   0,    2 },
-  { 'p',  0, "ppppppppppppp",    "O/2",   "Volt",     "",   'V', false, false, 2, 0x24, 0,  0xffff,   0,    8, 65536,   0,   1,      1,   0,    8,   0,    8 },
+  { 'N',  0, "RRRRRRwGGGGGG",   "Fuel",   "Trim",     "",   '%', false, true,  1, 0x06, 0,  0x00ff,-128,  100,   128,-128, 100,    128, -10,   10, -10,   10 },
+  { 'n',  0, "ppppppwyyyyyy",    "A/F",   "Rtio",     "",     0, false, true,  2, 0x24, 16, 0xffff,   0,    2, 65536,   0,   2,  65536,   0,    2,   0,    2 },
+  { 'p',  0, "yyyyyybpppppp",   "O/2A",   "Volt",     "",   'V', false, true,  1, 0x14, 8,  0x00ff,   0,    1,   200,   0,   1,    200,   0,    1,   0,    1 },
+  { 'P',  0, "yyyyyycpppppp",   "O/2b",   "Volt",     "",   'V', false, true,  1, 0x15, 8,  0x00ff,   0,    1,   200,   0,   1,    200,   0,    1,   0,    1 },
+
 };
 
 //------------------------------------------------------
@@ -120,11 +125,11 @@ static int  ds_requestErrorCount;
 static int  ds_totalRequestErrorCount;
 static int  ds_connectionErrorCount;
 static int  ds_lastItemIndex;
+static long  ds_lastLoopChangeMillis;
 static int  ds_powerAnalogPin;
 static bool ds_connecting;
 static bool ds_resetting;
 static bool ds_debugModeEnabled = DEBUG_DEFAULT_VALUE;
-static bool ds_demoModeEnabled = DEMO_DEFAULT_VALUE;
 static int ds_testProtocol = OBD_PROTOCOL_FIRST - 1;
 static struct DisplayablesOutputProvider *ds_output;
 static struct MenuControlsProvider *ds_controls;
@@ -141,6 +146,8 @@ struct DisplayablePersistedState {
   double fuelAdjustment;
   int protocol;
   int hasAutoScannedItems;
+  int loopModeEnabled;
+  int demoModeEnabled;
 };
 
 static struct DisplayablePersistedState ds_persistedState;
@@ -169,6 +176,8 @@ void ds_loadPersistedState() {
   if (ds_persistedState.fuelAdjustment < FUEL_ADJUST_MIN || ds_persistedState.fuelAdjustment > FUEL_ADJUST_MAX || isnan(ds_persistedState.fuelAdjustment)) ds_persistedState.fuelAdjustment = 1.0;
   if (ds_persistedState.protocol < OBD_PROTOCOL_FIRST || ds_persistedState.protocol > OBD_PROTOCOL_LAST) ds_persistedState.protocol = OBD_PROTOCOL_AUTOMATIC;
   if (ds_persistedState.hasAutoScannedItems < 0 || ds_persistedState.hasAutoScannedItems > 1) ds_persistedState.hasAutoScannedItems = 0;
+  if (ds_persistedState.loopModeEnabled < 0 || ds_persistedState.loopModeEnabled > 1) ds_persistedState.loopModeEnabled = 0;
+  if (ds_persistedState.demoModeEnabled < 0 || ds_persistedState.demoModeEnabled > 1) ds_persistedState.demoModeEnabled = DEMO_DEFAULT_VALUE;
 }
 
 void ds_savePersistedState() {
@@ -193,14 +202,14 @@ void ds_showStatusString_P(char *ptext) {
 
 void ds_showStatusInteger(int num) {
   char text[5];
-  snprintf(text, sizeof(text), "%-4d", (int)num);
+  snprintf_P(text, sizeof(text), PSTR("%-4d"), (int)num);
   ds_output->showStatusString(text);
   ds_controls->smartDelay(1000);
 }
 
 void ds_showStatusByte(int num) {
   char text[5];
-  snprintf(text, sizeof(text), "= %02X", (int)num);
+  snprintf_P(text, sizeof(text), PSTR("= %02X"), (int)num);
   ds_output->showStatusString(text);
   ds_controls->smartDelay(1000);
 }
@@ -252,7 +261,7 @@ bool ds_displayableLongPressAction(int current, int button, MenuDataSource *ds) 
     vmenu.highlightCurrentItem();
 
     char text[5];
-    snprintf(text, sizeof(text), "br %d", (int)ds_persistedState.brightness/25+1);
+    snprintf_P(text, sizeof(text), PSTR("br %d"), (int)ds_persistedState.brightness/25+1);
     ds_output->showStatusString(text);
     ds_controls->smartDelay(500);
 
@@ -310,12 +319,12 @@ void ds_toggleUnits(void) {
 void ds_autoScanItemsAt(int base) {
   unsigned char buf[4];
 
-  if (ds_demoModeEnabled) {
+  if (ds_persistedState.demoModeEnabled) {
     *(long *)buf = 0xffffffff;
   } else {
     vobd.sendPidRequest(base, 1);
     if (4 > vobd.receivePidResponseData(buf, 4, base, 1, true, false)) {
-      return;
+      *(long *)buf = 0;
     }
   }
 
@@ -337,7 +346,7 @@ void ds_autoScanItemsAt(int base) {
 
   for (int i=0; i<4; i++) {
      char tbuf[6];
-     snprintf(tbuf, sizeof(tbuf), "%02X.%02X", (int)(base + i*8 + 1), (int)buf[i]);
+     snprintf_P(tbuf, sizeof(tbuf), PSTR("%02X.%02X"), (int)(base + i*8 + 1), (int)buf[i]);
      ds_showStatusString(tbuf);
   }
 }
@@ -467,7 +476,7 @@ void ds_showDtcCode(long value) {
     case 0xc0: ds_showStatusString_P(PSTR(" U- ") ); break;
   }
   char buf[6];
-  snprintf(buf, sizeof(buf), "%04lx", value & 0x3fff);
+  snprintf_P(buf, sizeof(buf), PSTR("%04lx"), value & 0x3fff);
   ds_showStatusString(buf);
   ds_controls->smartDelay(2000);
 }
@@ -503,8 +512,14 @@ void ds_clearDtcCodes(void) {
   }
 }
 
+void ds_toggleLoopMode(void) {
+  ds_persistedState.loopModeEnabled = !ds_persistedState.loopModeEnabled;
+  ds_savePersistedState();
+}
+
 void ds_toggleDemoMode(void) {
-  ds_demoModeEnabled = !ds_demoModeEnabled;
+  ds_persistedState.demoModeEnabled = !ds_persistedState.demoModeEnabled;
+  ds_savePersistedState();
 }
 
 void ds_toggleDebugMode(void) {
@@ -541,7 +556,7 @@ void ds_setFuelAdjustment(void) {
 
       ds_persistedState.fuelAdjustment = min(max(ds_persistedState.fuelAdjustment, FUEL_ADJUST_MIN), FUEL_ADJUST_MAX);
 
-      snprintf(tbuf, sizeof(tbuf), "%d.%02d", (int)ds_persistedState.fuelAdjustment, (int)(ds_persistedState.fuelAdjustment*100)%100);
+      snprintf_P(tbuf, sizeof(tbuf), PSTR("%d.%02d"), (int)ds_persistedState.fuelAdjustment, (int)(ds_persistedState.fuelAdjustment*100)%100);
       ds_showStatusString(tbuf);
     }
 }
@@ -641,6 +656,7 @@ static struct SettingsDataSource ds_settingsDataSource = {
   ds_showDtcCodes,
   ds_clearDtcCodes,
   ds_setFuelAdjustment,
+  ds_toggleLoopMode,
   ds_toggleDemoMode,
   ds_toggleDebugMode,
   ds_enterSniffMode,
@@ -658,7 +674,7 @@ void ds_showStatusState() {
 }
 
 float ds_scaleDisplayableValue(float fvalue, struct DisplayableItem *disp, bool useAltUnits) {
-  if (!ds_demoModeEnabled) {
+  if (!ds_persistedState.demoModeEnabled) {
     fvalue += (useAltUnits) ? disp->offset2 : disp->offset1;
     fvalue = fvalue * (useAltUnits ? disp->multiplier2 : disp->multiplier1);
     fvalue /= (useAltUnits ? disp->divisor2 : disp->divisor1);
@@ -721,6 +737,7 @@ extern void VDisplayables::setup(int inPin, int outPin, int powerAnalogPin, stru
   int barCount = ds_output->getBarCount();
 
   // Hold buttons for hard memory reset
+#if !WOKWI
   while(1) {
     long time = millis();
     bool b1 = ds_controls->isButton1Down();
@@ -749,6 +766,7 @@ extern void VDisplayables::setup(int inPin, int outPin, int powerAnalogPin, stru
       break;
     }
   }
+#endif
 }
 
 extern void VDisplayables::mainLoop() {
@@ -757,7 +775,25 @@ extern void VDisplayables::mainLoop() {
     vmenu.mainLoop(false);
     vmenu.highlightCurrentItem();
   } else {
-    vmenu.mainLoop(false);
+    long time = millis();
+    bool saveTime = false;
+
+    // Cycle to next gauge
+    if (ds_persistedState.loopModeEnabled && (unsigned long)(time - ds_lastLoopChangeMillis) > LOOP_IDLE_CYCLE_MILLIS) {
+      for (int i = DISPLAYABLE_ITEM_COUNT; i--;) {
+        ds_persistedState.currentItemIndex = (ds_persistedState.currentItemIndex + 1) % DISPLAYABLE_ITEM_COUNT;
+        if (!ds_menuDataSource.isItemHidden(ds_persistedState.currentItemIndex, &ds_menuDataSource)) break;
+      }
+      vmenu.highlightCurrentItem();
+      showCurrentItem();
+      saveTime = true;
+    } else {
+      saveTime = vmenu.mainLoop(false);
+    }
+
+    if (saveTime) {
+      ds_lastLoopChangeMillis = time;
+    } 
   }
 
   // Connect if needed
@@ -799,7 +835,7 @@ extern void VDisplayables::mainLoop() {
       case OBD_PROTOCOL_KWP_FAST: ds_output->showStatusString_P(PSTR("Fast")); ds_controls->smartDelay(300); ds_output->showStatusString_P(PSTR("2000")); break;
     }
 
-    vobd.connect(ds_testProtocol,  ds_demoModeEnabled);
+    vobd.connect(ds_testProtocol,  ds_persistedState.demoModeEnabled);
 
     ds_connecting = false; ds_showStatusState();
 
@@ -860,7 +896,7 @@ extern bool VDisplayables::updateCurrentItemValue() {
   char suffix = 0;
   long ms = millis();
 
-  if (ds_demoModeEnabled) {
+  if (ds_persistedState.demoModeEnabled) {
     int16_t min = (useAltUnits) ? disp->min2 : disp->min1;
     int16_t max = (useAltUnits) ? disp->max2 : disp->max1;
     float step = (max-min)/50.0;
@@ -876,6 +912,7 @@ extern bool VDisplayables::updateCurrentItemValue() {
       case DISPLAYABLE_ITEM_TOTAL_FUEL:
         demoValueIncrements = true;
         step /= 700;
+        break;
       case DISPLAYABLE_ITEM_BATTERY_VOLTS:
         demoValue = analogRead(ds_powerAnalogPin) * 5.0 * BATTERY_VOLTAGE_DIVIDE / 1023.0;
     }
@@ -1027,7 +1064,7 @@ extern bool VDisplayables::updateCurrentItemValue() {
 }
 
 extern void VDisplayables::ping() {
-  if (!ds_demoModeEnabled) {
+  if (!ds_persistedState.demoModeEnabled) {
     vobd.ping();
   }
 }

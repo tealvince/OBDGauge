@@ -327,16 +327,16 @@ int VObd::kwpSlowInit(int proto, bool demoMode) {
 
   if (output) { 
     char buf[6];
-    snprintf(buf, 6, "%02X%02X", (int)keyByte1, (int)keyByte2);
+    snprintf_P(buf, 6, PSTR("%02X%02X"), (int)keyByte1, (int)keyByte2);
     output->showStatusString(buf);
     smartDelay(500);
-    snprintf(buf, 6, "\x03%02X\x03", (int)response[0]);
+    snprintf_P(buf, 6, PSTR("\x03%02X\x03"), (int)response[0]);
     output->showStatusString(buf);
     smartDelay(500);
     if (byteCount < 1) {
       output->showStatusString_P(PSTR("Ack!")); smartDelay(500); output->showStatusInteger(byteCount);      
     } else {
-      snprintf(buf, 5, "_%02X_", (int)bytes[0]);
+      snprintf_P(buf, 5, PSTR("_%02X_"), (int)bytes[0]);
       output->showStatusString(buf);
     }
   }
@@ -413,7 +413,7 @@ void VObd::debugBytes(unsigned char *bytes, int byteCount, int minByteSpacing, i
     // Show initial byte in buffer if response is empty (debug code)
     for (int i=0; i<byteCount; i++) {
       char text[6];
-      snprintf(text, sizeof(text), "%-2d.%02X", i, (int)bytes[i]);
+      snprintf_P(text, sizeof(text), PSTR("%-2d.%02X"), i, (int)bytes[i]);
       output->showStatusString(text);
       smartDelay(500);
     }

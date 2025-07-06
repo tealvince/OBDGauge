@@ -41,7 +41,7 @@ void ap_menuItemShowTitle(char *title);
 int  ap_getDisplayBarCount(void);
 void ap_setDisplayBarColor(int index, unsigned char color);
 void ap_showDisplayBar();
-void ap_showDisplayFloatValue(float num, int decimals, char *suffix, bool addPlus);
+void ap_showDisplayFloatValue(float num, int decimals, int suffix, bool addPlus);
 void ap_showDisplayStatusState(bool connecting, bool resetting, int errorCount, int connectionErrorCount, int protocolIndex);
 void ap_showDisplayStatusString(char *text);
 void ap_showDisplayStatusString_P(char *ptext);
@@ -163,34 +163,35 @@ void ap_showDisplayBar() {
   vring.show();
 }
 
-void ap_showDisplayFloatValue(float num, int dig, char *suf, bool addPlus) {
+void ap_showDisplayFloatValue(float num, int dig, int suf, bool addPlus) {
   char sufBuf[2];
   char preBuf[2];
-  char *prefix = (num < 0) ? "-" : addPlus ? "+" : "";
-  char *suffix = sufBuf;
+  char *prefix = preBuf; prefix[0] = (num < 0) ? '-' : addPlus ? '+' : 0;
+
+  char suffix = 0;
   unsigned long whole = 0;
   unsigned long frac = 0;
   int fracdig = 0;
 
-  sufBuf[0] = suf;
   sufBuf[1] = 0;
+  preBuf[1] = 0;
   num = abs(num);
 
   if (num > 999000000) {
     whole = num/1000000000;
     frac = (num-whole*1000000000)/100000000;
     fracdig = 1;
-    suffix = "B";
+    suffix = 'B';
   } else if (num > 999000) {
     whole = num/1000000;
     frac = (num-whole*1000000)/100000;
     fracdig = 1;
-    suffix = "M";
+    suffix = 'M';
   } else if (num > 9999) {
     whole = num/1000;
     frac = (num-whole*1000)/100;
     fracdig = 1;
-    suffix = "k";
+    suffix = 'k';
   } else {
     whole = num;
     if (dig > 0) {
@@ -206,13 +207,15 @@ void ap_showDisplayFloatValue(float num, int dig, char *suf, bool addPlus) {
   char buf[30];
   char tmp[30];
 
-  buf[29] = 0;
   strcpy(buf, prefix);
   itoa(whole, buf+strlen(buf), 10);
 
   int maxDigits = 4;
 
-  if (strlen(buf) + strlen(suffix) + 1 <= maxDigits && ((strlen(suffix) && suffix != sufBuf) || dig)) {
+  // Override default suffix if set
+  sufBuf[0] = suffix ?: suf;
+
+  if (strlen(buf) + strlen(sufBuf) + 1 <= maxDigits && ((strlen(sufBuf) && suffix) || dig)) {
     maxDigits++;
     strncat(buf, ".", sizeof(buf)-1);
     itoa(frac, tmp, 10);
@@ -223,12 +226,13 @@ void ap_showDisplayFloatValue(float num, int dig, char *suf, bool addPlus) {
   }
 
   // Right justify
-  int space = maxDigits - strlen(buf) - strlen(suffix);
+  int space = maxDigits - strlen(buf) - strlen(sufBuf);
   space = max(0,space);
-  strcpy(tmp, "    ");
+  tmp[0] = tmp[1] = tmp[2] = tmp[3] = ' ';
+  tmp[4] = 0;
   strcpy(tmp+space, buf);
 
-  strncat(tmp, suffix, sizeof(tmp)-1);
+  strncat(tmp, sufBuf, sizeof(tmp)-1);
   vdigits.showString(tmp, true);
 }
 

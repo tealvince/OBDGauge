@@ -12,7 +12,7 @@ struct DisplayablesOutputProvider {
   int   (*getBarCount)(void);
   int   (*setBarColor)(int index, unsigned char color);
   int   (*showBar)();
-  void  (*showFloatValue)(float value, int decimals, char *suffix, bool addPlus);
+  void  (*showFloatValue)(float value, int decimals, int suffix, bool addPlus);
   void  (*showStatusState)(bool connecting, bool resetting, int errorCount, int connectionErrorCount, int protocolIndex);
   void  (*showStatusString)(char *text);
   void  (*showStatusString_P)(char *text);

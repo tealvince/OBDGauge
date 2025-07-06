@@ -28,14 +28,15 @@ static MenuDisplayProvider *st_display;
 #define SETTINGS_MENU_ITEM_DTC_CODE       9
 #define SETTINGS_MENU_ITEM_DTC_CLEAR      10
 #define SETTINGS_MENU_ITEM_FUEL_ADJUST    11
-#define SETTINGS_MENU_ITEM_DEMO_MODE      12
-#define SETTINGS_MENU_ITEM_DEBUG_MODE     13
-#define SETTINGS_MENU_ITEM_SNIFF_MODE     14
-#define SETTINGS_MENU_ITEM_COUNT          15
+#define SETTINGS_MENU_ITEM_LOOP_MODE      12
+#define SETTINGS_MENU_ITEM_DEMO_MODE      13
+#define SETTINGS_MENU_ITEM_DEBUG_MODE     14
+#define SETTINGS_MENU_ITEM_SNIFF_MODE     15
+#define SETTINGS_MENU_ITEM_COUNT          16
 
-static const char *st_titles1[] = { "BACK", "ERAs", "DISP", "UNIt", "HIDE", "SHOW", "Auto", "SEE",  "CHEK", "READ", "CLR",  "Burn", "Demo", "DBug", "Snif" };
-static       char *st_titles2[] = { "BACK", "HISt", "Brte", "TOGL", "gAgE", "gAgE", "gAgE", "Data", "REDY", "CDES", "CDES", "Adj.", "Mode", "Mode", "Mode" };
-static const char  st_colors[]  = "bvworgGpycnliNR";
+static const char *st_titles1[] = { "BACK", "ERAs", "DISP", "UNIt", "HIDE", "SHOW", "Auto", "SEE",  "CHEK", "READ", "CLR",  "Burn", "Loop", "Demo", "DBug", "Snif" };
+static       char *st_titles2[] = { "BACK", "HISt", "Brte", "TOGL", "gAgE", "gAgE", "gAgE", "Data", "REDY", "CDES", "CDES", "Adj.", "Mode", "Mode", "Mode", "Mode" };
+static const char  st_colors[]  = "bvworgGpycnlViNR";
 
 //------------------------------------------------------
 // Private (brighness menu support)
@@ -118,6 +119,9 @@ bool st_longPressAction(int current, int button) {
       return true;
     case SETTINGS_MENU_ITEM_FUEL_ADJUST:
       st_dataSource->setFuelAdjustment();
+      break;
+    case SETTINGS_MENU_ITEM_LOOP_MODE:
+      st_dataSource->toggleLoopMode();
       break;
     case SETTINGS_MENU_ITEM_DEMO_MODE:
       st_dataSource->toggleDemoMode();

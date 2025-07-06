@@ -3,12 +3,10 @@
 // Software-driven serial port
 ///////////////////////////////////////////////////////////////
 
+#include "Environment.h"
+
 #ifndef _VSERIAL
 #define _VSERIAL
-
-// TODO: Revisit to make these dynamic
-#define SERIAL_MAX_BYTES 15
-#define SERIAL_MAX_FLIPS (SERIAL_MAX_BYTES*10)
 
 class VSerial {
   private:
