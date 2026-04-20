@@ -10,8 +10,15 @@
 
 struct SettingsDataSource {
   void (*clearHistory)(void);
+  void (*clearDistance)(void);
+  void (*clearFuel)(void);
+  void (*clearTime)(void);
+  void (*adjustDistance)(void);
+  void (*adjustFuel)(void);
+  void (*adjustTime)(void);
   void (*setBrightness)(int brightness);
   void (*toggleCurrentItemUnits)(void);
+  void (*setAllCurrentItemUnits)(bool);
   void (*autoScanItems)(void);
   void (*hideCurrentItem)(void);
   void (*showItemByName)(char *name);
@@ -20,6 +27,13 @@ struct SettingsDataSource {
   void (*showDtcCodes)(void);
   void (*clearDtcCodes)(void);
   void (*setFuelAdjustment)(void);
+  void (*setKgWeight)(void);
+  void (*startGearDetect)(void);
+  int  (*getGearCount)(void);
+  void (*showGears)(void);
+  void (*addGear)(void);
+  void (*removeGear)(void);
+  void (*editGear)(int);
   void (*toggleLoopMode)(void);
   void (*toggleDemoMode)(void);
   void (*toggleDebugMode)(void);

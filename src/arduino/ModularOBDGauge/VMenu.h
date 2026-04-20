@@ -43,7 +43,7 @@ class VMenu {
 
   public:
     void setup(struct MenuDataSource *data, struct MenuDisplayProvider *disp, struct MenuControlsProvider *ctl);
-    void showMenu(char *optionalTitle);
+    int  showMenu(char *optionalTitle);
     bool mainLoop(bool showCurrent);
     int  showCurrentItem(bool abortable);
     void highlightCurrentItem();

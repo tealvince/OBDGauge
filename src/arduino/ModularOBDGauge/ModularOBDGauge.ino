@@ -28,6 +28,7 @@
 
 #define SWITCH_PIN_1        9
 #define SWITCH_PIN_2        8
+#define LED_PIN             13
 
 VDigits vdigits;
 VDisplayables vdisplayables;
@@ -45,6 +46,7 @@ void ap_showDisplayFloatValue(float num, int decimals, int suffix, bool addPlus)
 void ap_showDisplayStatusState(bool connecting, bool resetting, int errorCount, int connectionErrorCount, int protocolIndex);
 void ap_showDisplayStatusString(char *text);
 void ap_showDisplayStatusString_P(char *ptext);
+void ap_showSweep(char color);
 void ap_setDisplayBrightness(int brightness);
 void ap_smartDelay(unsigned long wait);
 
@@ -67,6 +69,7 @@ struct DisplayablesOutputProvider app_displayablesOutputProvider = {
   ap_showDisplayStatusState,
   ap_showDisplayStatusString,
   ap_showDisplayStatusString_P,
+  ap_showSweep,
   ap_setDisplayBrightness,
 };
 
@@ -80,7 +83,7 @@ void setup() {
   vring.setup(RING_PIN_CONTROL, RING_LIGHT_COUNT, RING_BRIGHTNESS, RING_ROTATION_OFFSET);
 
   ap_showDisplayStatusString_P(PSTR("VObd"));
-  vring.showDemo();
+  ap_showSweep('c');
   ap_smartDelay(800);
   ap_showDisplayStatusString_P(PSTR(" " BUILD_VERSION));
   ap_smartDelay(800);
@@ -101,12 +104,14 @@ void loop() {
 // Private
 //------------------------------------------------------
 
-#define BUTTON_DEBOUNCE_COUNT 25
+#define BUTTON_DEBOUNCE_COUNT 12
 static bool ap_button1LastState = false;
 static bool ap_button2LastState = false;
 
 bool ap_isControlsButton1Down() {
   bool state = !digitalRead(SWITCH_PIN_1);
+  digitalWrite(LED_PIN, state);
+
   if (state != ap_button1LastState) {
     for (int i=0; i<BUTTON_DEBOUNCE_COUNT; i++) {
       if (!digitalRead(SWITCH_PIN_1) != state) return ap_button1LastState;
@@ -175,7 +180,7 @@ void ap_showDisplayFloatValue(float num, int dig, int suf, bool addPlus) {
 
   sufBuf[1] = 0;
   preBuf[1] = 0;
-  num = abs(num);
+  num = fabs(num);
 
   if (num > 999000000) {
     whole = num/1000000000;
@@ -195,7 +200,7 @@ void ap_showDisplayFloatValue(float num, int dig, int suf, bool addPlus) {
   } else {
     whole = num;
     if (dig > 0) {
-      float diff = abs(num) - floor(abs(num));
+      float diff = fabs(num) - floor(fabs(num));
       for (int i=0; i<dig; i++) {
         diff *= 10;
       }
@@ -227,7 +232,7 @@ void ap_showDisplayFloatValue(float num, int dig, int suf, bool addPlus) {
 
   // Right justify
   int space = maxDigits - strlen(buf) - strlen(sufBuf);
-  space = max(0,space);
+  space = max(0, space);
   tmp[0] = tmp[1] = tmp[2] = tmp[3] = ' ';
   tmp[4] = 0;
   strcpy(tmp+space, buf);
@@ -263,6 +268,27 @@ void ap_showDisplayStatusString_P(char *ptext) {
   ap_showDisplayStatusString(text);
 }
 
+void ap_showSweep(char color) {
+  int lightCount = ap_getDisplayBarCount();
+
+  for (int j = 0; j < lightCount; j++) {    
+    for (int i = 0; i < lightCount; i++) {    
+      ap_setDisplayBarColor(i, i==j ? color : 'k');
+    }
+    ap_showDisplayBar(); 
+    ap_smartDelay(40);
+  }
+  for (int j = lightCount-1; j >= 0; j--) {    
+    for (int i = 0; i < lightCount; i++) {    
+      ap_setDisplayBarColor(i, i==j ? color : 'k');
+    }
+    ap_showDisplayBar(); 
+    ap_smartDelay(40);
+  }
+  ap_setDisplayBarColor(0, 'k');
+  ap_showDisplayBar(); 
+}
+
 void ap_setDisplayBrightness(int brightness) {
   vring.setBrightness(RING_BRIGHTNESS_MIN + (RING_BRIGHTNESS_MAX - RING_BRIGHTNESS_MIN) * brightness/100);
   vdigits.setBrightness(DIGITS_BRIGHTNESS_MIN + (DIGITS_BRIGHTNESS_MAX - DIGITS_BRIGHTNESS_MIN) * brightness/100);
@@ -277,9 +303,11 @@ void ap_smartDelay(unsigned long wait) {
     if (ap_lastPowerOn != powerOn) {
       ap_lastPowerOn = powerOn;
       if (!powerOn) {
-        vdisplayables.savePersistedState();
-        vdigits.showString("Save", true);
-        delay(1000);
+        vdigits.showString("Lo-V", true);
+        if (vdisplayables.savePersistedState()) {
+          vdigits.showString("Save", true);
+          delay(1000);
+        }
       }
     }
 

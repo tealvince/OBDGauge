@@ -92,13 +92,14 @@ extern void VMenu::setup(struct MenuDataSource *data, struct MenuDisplayProvider
   if (!dataSource->shortPressAction) dataSource->shortPressAction = mn_defaultLongPressAction;
 }
 
-extern void VMenu::showMenu(char *optionalTitle) {
+extern int VMenu::showMenu(char *optionalTitle) {
   if (optionalTitle) {
     display->showItemTitle(optionalTitle);
     controls->smartDelay(1000);
   }
   while (!mainLoop(true)) {}
   while ( (controls->isButton1Down() || controls->isButton2Down())) {}
+  return dataSource->getCurrentItem(dataSource);
 } 
 
 extern bool VMenu::mainLoop(bool showCurrent) {

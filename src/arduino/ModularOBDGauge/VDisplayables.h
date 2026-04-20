@@ -16,6 +16,7 @@ struct DisplayablesOutputProvider {
   void  (*showStatusState)(bool connecting, bool resetting, int errorCount, int connectionErrorCount, int protocolIndex);
   void  (*showStatusString)(char *text);
   void  (*showStatusString_P)(char *text);
+  void  (*showSweep)(char color);
   void  (*setBrightness)(int brightness);
 };
 
@@ -35,7 +36,7 @@ class VDisplayables {
     bool updateCurrentItemValue();
     void ping();
     bool showCurrentItem();
-    void savePersistedState();
+    bool savePersistedState();
 };
 
 #endif
