@@ -4072,7 +4072,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "NANO"
+		(property "Value" "NANO EVERY"
 			(at 195.072 116.84 0)
 			(effects
 				(font
@@ -4587,7 +4587,7 @@
 				)
 			)
 		)
-		(property "Value" "9V REG"
+		(property "Value" "9V REG (OPTIONAL)"
 			(at 81.026 51.816 90)
 			(effects
 				(font
@@ -5348,7 +5348,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "47K"
+		(property "Value" "23.5K"
 			(at 149.86 129.5399 0)
 			(effects
 				(font
