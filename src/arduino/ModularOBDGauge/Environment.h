@@ -1,4 +1,4 @@
-#define BUILD_VERSION "1.7"
+#define BUILD_VERSION "1.8"
 
 #define WOKWI false
 

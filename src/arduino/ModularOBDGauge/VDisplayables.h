@@ -8,6 +8,10 @@
 // Displayable OBD Gauges
 ///////////////////////////////////////////////////////////////
 
+#define SWEEP_MODE_RIGHT_LEFT 0
+#define SWEEP_MODE_UP         1
+#define SWEEP_MODE_DOWN       2
+
 struct DisplayablesOutputProvider {
   int   (*getBarCount)(void);
   int   (*setBarColor)(int index, unsigned char color);
@@ -16,7 +20,7 @@ struct DisplayablesOutputProvider {
   void  (*showStatusState)(bool connecting, bool resetting, int errorCount, int connectionErrorCount, int protocolIndex);
   void  (*showStatusString)(char *text);
   void  (*showStatusString_P)(char *text);
-  void  (*showSweep)(char color);
+  void  (*showSweep)(char color, int mode);
   void  (*setBrightness)(int brightness);
 };
 

@@ -25,8 +25,8 @@ static MenuDisplayProvider *st_display;
 #define SETTINGS_MENU_ITEM_MODES          6
 #define SETTINGS_MENU_ITEM_COUNT          7
 
-static const char *st_titles1[] = { "BACK", "HISt", "DISP", "gAgE", "CODE", "Vehi", "SPEC" };
-static       char *st_titles2[] = { "BACK", "Adj.", "Adj.", "Adj.", "READ", "Vals", "Mode" };
+static const char *st_titles1[] = { "BACK", "HISt", "DISP", "gAgE", "CODE", "VEHI", "SPEC" };
+static       char *st_titles2[] = { "BACK", "Adj.", "Adj.", "Adj.", "READ", "VALS", "ModE" };
 static const char  st_colors[]  = "byowrcv";
 
 bool st_longPressAction(int current, int button);
@@ -50,7 +50,7 @@ static struct MenuDataSource st_menuDataSource = {
 #define SETTINGS_MENU_HISTORY_ITEM_COUNT        8
 
 static const char *st_historyTitles1[] = { "BACK", "ERAs", "RSet", "RSet", "RSet", "Adj.", "Adj.", "Adj." };
-static const char *st_historyTitles2[] = { "BACK",  "All", "dISt", "Fuel", "Time", "dISt", "Fuel", "Time" };
+static const char *st_historyTitles2[] = { "BACK",  "ALL", "dISt", "FUEL", "TImE", "dISt", "FUEL", "TImE" };
 static const char  st_historyColors[]  = "brgowGOW";
 
 static struct MenuDataSource st_historyDataSource = {  
@@ -101,8 +101,8 @@ bool st_brightnessAction(int current, int button) {
 #define SETTINGS_MENU_GAUGES_ITEM_INFO         7
 #define SETTINGS_MENU_GAUGES_ITEM_COUNT        8
 
-static const char *st_gaugesTitles1[] = { "BACK", "UNIt", "All-", "All-", "HIDE", "SHOW", "Auto", "SEE"  };
-static const char *st_gaugesTitles2[] = { "BACK", "TOGL", "-SI-", "-US-", "gAgE", "gAgE", "gAgE", "Data" };
+static const char *st_gaugesTitles1[] = { "BACK", "UNIt", "ALL-", "ALL-", "HIDE", "SHOW", "Auto", "SEE"  };
+static const char *st_gaugesTitles2[] = { "BACK", "TOGL", "-SI-", "-US-", "gAgE", "gAgE", "gAgE", "DAtA" };
 static const char  st_gaugesColors[]  = "bycnrgvo";
 
 bool st_isGaugesItemHidden(int item);
@@ -163,8 +163,8 @@ static struct MenuDataSource st_codesDataSource = {
 #define SETTINGS_MENU_VALUES_ITEM_GEAR_8         14
 #define SETTINGS_MENU_VALUES_ITEM_COUNT          15
 
-static const char *st_valuesTitles1[] = { "BACK", "Burn", "Mass", "gear", "Auto", "Add.", "Rem.", "1 st", "2 nd", "3 rd", "4 th", "5 th", "6 th", "7 th", "8 th" };
-static const char *st_valuesTitles2[] = { "BACK", "Adj.", "Kg.",  "List", "gear", "gear", "gear", "gear", "gear", "gear", "gear", "gear", "gear", "gear", "gear" };
+static const char *st_valuesTitles1[] = { "BACK", "Burn", "Mass", "GEAr", "Auto", "Add.", "dEL.", "1 st", "2 nd", "3 rd", "4 th", "5 th", "6 th", "7 th", "8 th" };
+static const char *st_valuesTitles2[] = { "BACK", "Adj.", "Adj.", "LISt", "GEAr", "GEAr", "GEAr", "GEAr", "GEAr", "GEAr", "GEAr", "GEAr", "GEAr", "GEAr", "GEAr" };
 static const char  st_valuesColors[]  = "bOYWngrvvvvvvvv";
 
 bool st_isValuesItemHidden(int item);

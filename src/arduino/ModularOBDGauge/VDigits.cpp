@@ -26,7 +26,7 @@
 //   |     |
 //   e     c
 //   |     |
-//    --d--   h.
+//    --d--   dot.
 //
 
 #ifndef SEG_DOT
@@ -34,7 +34,7 @@
 #endif
 
 #define FONT_SPECIAL_START 1
-#define FONT_SPECIAL_COUNT 3
+#define FONT_SPECIAL_COUNT 6
 #define FONT_NORMAL_START ('!')
 #define FONT_NORMAL_COUNT ('~' - FONT_NORMAL_START + 1)
 
@@ -49,6 +49,9 @@ static const uint8_t dg_font[TABLE_SIZE] PROGMEM = {
   /* degree */ SEG_A | SEG_B | SEG_F | SEG_G,
   /* bars */ SEG_A | SEG_G | SEG_D,
   /* top */ SEG_A,
+  /* w-left */ SEG_E | SEG_D | SEG_C | SEG_DOT,
+  /* w-right */ SEG_E,                        
+  /* raised n */ SEG_F | SEG_A | SEG_B,
 
   // Normal
   

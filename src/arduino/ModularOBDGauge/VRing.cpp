@@ -73,6 +73,19 @@ extern void VRing::setPixelColor(int i, char color) {
     default:
     case 'w': ring.setPixelColor(i, 0x88, 0x88, 0x88, 0); break;
     case 'W': ring.setPixelColor(i, 0x33, 0x33, 0x33, 0); break;
+    case 'e': ring.setPixelColor(i, 0x19, 0x19, 0x19, 0); break;
+
+    // Menu banks
+    case '-': ring.setPixelColor(i, 0x00/dim, 0x00/dim, 0x10/dim, 0); break;
+    case '+': ring.setPixelColor(i, 0x00/dim, 0x00/dim, 0x20/dim, 0); break;
+
+    case '1': ring.setPixelColor(i, 0x00/dim, 0x80/dim, 0x00/dim, 0); break; // red
+    case '2': ring.setPixelColor(i, 0x40/dim, 0x80/dim, 0x00/dim, 0); break; // yellow
+    case '3': ring.setPixelColor(i, 0x80/dim, 0x40/dim, 0x00/dim, 0); break; // green
+    case '4': ring.setPixelColor(i, 0x80/dim, 0x00/dim, 0x40/dim, 0); break; // cyan
+    case '5': ring.setPixelColor(i, 0x00/dim, 0x40/dim, 0x80/dim, 0); break; // purple
+                                    // g     r     b
+
   }
  }
 

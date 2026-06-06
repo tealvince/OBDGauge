@@ -13,9 +13,9 @@
 #define FUEL_ADJUST_DELTA 0.01
 
 #define GEAR_MAX_COUNT 8
-#define GEAR_RPK_MIN (1000L/60)
-#define GEAR_RPK_MAX (10000L/60)
-#define GEAR_RPK_INTERVAL 1L
+#define GEAR_NV_MIN (1000L/60)
+#define GEAR_NV_MAX (10000L/60)
+#define GEAR_NV_INTERVAL 1L
 #define GEAR_DETECT_TIME (60L * 1000L)
 #define GEAR_MIN_DIFF 3
 #define GEAR_DIVIDEND 200
@@ -36,6 +36,7 @@
 ///////////////////////////////////////////////////////////////
 
 struct DisplayableItem {
+  char bankColor;
   char menuColor;
   char spotColor;
   char colors[14];
@@ -47,7 +48,7 @@ struct DisplayableItem {
   bool centered;
   uint8_t decimals;
   uint8_t pid;
-
+ 
   int8_t shift;
   uint16_t mask;
   int16_t  offset1;
@@ -93,46 +94,45 @@ struct DisplayableItem {
 
 #define DISPLAYABLE_ITEM_COUNT 24
 
-static const DisplayableItem menu_rawDisplayables[] PROGMEM = {
+static const DisplayableItem menu_displayables[] = {
   // Accumulated
-  // mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
-
-  { 'r','W', "RRRRRRRRRRRRR",  "t.RUN",   "CLOC",     "",     0, false, false, 2, 0xff, 0,  0xffff,   0,    1,     1,   0,   1,     1,    0,   59,   0,   59 },
-  { 'o',  0, "OOOOOOOOOOOOO",  "t.gAS",   "Litr", "gALS",     0, false, false, 2, 0xff, 0,  0xffff,   0,    1,     1,   0, 264,  1000,    0,  200,   0,   60 },
-  { 'b',  0, "iiiiiiiiiiiii",  "t.DSt",   "Kilo", "MILE",     0, false, false, 1, 0xff, 0,  0xffff,   0,    1,     1,   0, 621,  1000,    0,  800,   0,  500 },
-  { 'c','g', "bbbbbbbbbbbbb",  "Av.SP",    "KPH",  "MPH",     0, false, false, 1, 0x0d, 0,  0xffff,   0,    1,     1,   0, 621,  1000,    0,  200,   0,  120 },
-  { 'l','b', "lllllllllllll",  "Av.EF",   "L100",  "MPg",     0, false, false, 2, 0xff, 0,  0xffff,   0,  100,     1,   0, 621,   264,    0,   40,   0,   50 },
+  // bank mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
+  { '1', 'r','W', "RRRRRRRRRRRRR",  "t.RUN",   "CLOC",     "",     0, false, false, 2, 0xff, 0,  0xffff,   0,    1,     1,   0,   1,     1,    0,   59,   0,   59 },
+  { '1', 'o',  0, "OOOOOOOOOOOOO",  "t.gAS",   "Litr", "gALS",     0, false, false, 2, 0xff, 0,  0xffff,   0,    1,     1,   0, 264,  1000,    0,  200,   0,   60 },
+  { '1', 'y',  0, "iiiiiiiiiiiii",  "t.DSt",   "Kilo", "MILE",     0, false, false, 1, 0xff, 0,  0xffff,   0,    1,     1,   0, 621,  1000,    0,  800,   0,  500 },
 
   // Special
-  // mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
-  { 'G','w', "rrrooowgggbbb",   "Forc",    "g's",     "",     0, false,  true, 2, 0x0d, 0,  0xffff,   0,    1,     1,   0,   1,     1,   -1,      1,-1,    1 },
-  { 'O','w', "yyyyoooorrrrr",   "POut",   "m HP",   "HP",     0, false, false, 0, 0x0d, 0,  0xffff,   0,    1,     1,   0,   1,     1,    0,    300, 0,  300 },
-  { 'w','w', "nnnnnnnnnnnnn",   "GEAr",   "NvSI", "NvUS",     0, false, false, 0, 0x0c, 0,  0xffff,   0,    1,     1,   0, 1000,  621,    1,      8, 1,    8 },
+  // bank mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
+  { '2', 'G','g', "bbbbbbbbbbbbb",  "Av.SP",    "KPH",    "MPH",   0, false, false, 1, 0x0d, 0,  0xffff,   0,    1,     1,   0, 621,  1000,    0,  200,   0,  120 },
+  { '2', 'c','b', "lllllllllllll",  "Av.EF",   "L100",    "MPg",   0, false, false, 2, 0xff, 0,  0xffff,   0,  100,     1,   0, 621,   264,    0,   40,   0,   50 },
+  { '2', 'l','w', "rrrooowgggbbb",  "F.Acc",    "Gee",       "",   0, false,  true, 2, 0x0d, 0,  0xffff,   0,    1,     1,   0,   1,     1,   -1,      1,-1,    1 },
+  { '2', 'L','w', "yyyyoooorrrrr",  "P.Out", "\4\5PS", "\4\5HP",   0, false, false, 0, 0x0d, 0,  0xffff,   0,    1,     1,   0,   1,     1,    0,    300, 0,  300 },
+  { '2', 'W','w', "nnnnnnnnnnnnn",   "GEAr",   "NvSI",   "NvUS",   0, false, false, 0, 0x0c, 0,  0xffff,   0,    1,     1,   0, 1000,  621,    1,      8, 1,    8 },
 
   // Bank1
-  // mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
-  { 'g',  0, "GGGGGGGGGGGGG",   "SPED",    "KPH",  "MPH",   ' ', false, false, 0, 0x0d, 0,  0xffff,   0,    1,     1,   0, 621,  1000,    0,  200,   0,  120 },
-  { 'y',  0, "yyyyyyyyyoorr",   "TACH",    "RPM",     "",     0, false, false, 0, 0x0c, 0,  0xffff,   0,    1,     4,   0,   1,     4,    0, 7000,   0, 7000 },
-  { 'c',  0, "cccccgggorrrr",   "COOL",   " \1C", " \1F",  '\1', false, false, 0, 0x05, 0,  0xffff, -40,    1,     1, -22,   9,     5,   38,  150, 100,  300 },
-  { 'W',  0, "WWWWWWWWWWWWW",  "A.Prs",   "K.PA",   "PSI",  ' ', false, false, 0, 0x0B, 0,  0xffff,   0,    1,     1,   0, 145,  1000,    0,  210,   0,   30 },
-  { 'w',  0, "WWWWWWWWWWWWW",  "A.Flo",    "g/S", "Lb/m",     0, false, false, 1, 0x10, 0,  0xffff,   0,    1,   100,   0, 132, 100000,   0,  400,   0,   50 },
-  { 'c',  0, "ccccccccccccc",   "THRO",   "pct.",     "",   '%', false, false, 0, 0x11, 0,  0xffff,   0,  100,   255,   0,   1,      1,   0,  100,   0,  100 },
+  // bank mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
+  { '3', 'g',  0, "GGGGGGGGGGGGG",   "SPED",    "KPH",  "MPH",   ' ', false, false, 0, 0x0d, 0,  0xffff,   0,    1,     1,   0, 621,  1000,    0,  200,   0,  120 },
+  { '3', 'y',  0, "yyyyyyyyyoorr",   "TACH",    "RPM",     "",     0, false, false, 0, 0x0c, 0,  0xffff,   0,    1,     4,   0,   1,     4,    0, 7000,   0, 7000 },
+  { '3', 'c',  0, "cccccgggorrrr",  "h2oT.",   " \1C", " \1F",  '\1', false, false, 0, 0x05, 0,  0xffff, -40,    1,     1, -22,   9,     5,   38,  150, 100,  300 },
+  { '3', 'w',  0, "WWWWWWWWWWWWW",  "AirT.",   " \1C", " \1F",  '\1', false, false, 0, 0x0F, 0,  0xffff, -40,    1,     1, -22,   9,      5,  20,  100,  70,  200 },
+  { '3', 'p',  0, "ccccccccccccc",   "Thro",   "pct.",     "",   '%', false, false, 0, 0x11, 0,  0xffff,   0,  100,   255,   0,   1,      1,   0,  100,   0,  100 },
+  { '3', 'y',  0, "yyyyooooorrrr",   "LOAD",   "pct.",     "",   '%', false, false, 0, 0x04, 0,  0xffff,   0,  100,   255,   0,   1,      1,   0,  100,   0,  100 },
+  { '3', 'o',  0, "ooooooooooooo",   "TANK",   "LevL",     "",   '%', false, false, 0, 0x2F, 0,  0xffff,   0,    1,     1,   0,   1,      1,   0,  100 ,  0,  100 },
+  { '3', 'R',  0, "RRRRRRRRRRRRR",   "Burn",    "L/h",  "g/h",   ' ', false, false, 1, 0x5E, 0,  0xffff,   0,    1,    20,   0, 264,  20000,   0,   40,   0,   10 },
 
   // Bank2
-  // mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
-  { 'y',  0, "yyyyooooorrrr",   "ENG.",   "LOAD",     "",   '%', false, false, 0, 0x04, 0,  0xffff,   0,  100,   255,   0,   1,      1,   0,  100,   0,  100 },
-  { 'n',  0, "nnnnnnwoooooo",   "TIME",  "Advc.",     "",  '\1', false, true,  1, 0x0E, 0,  0xffff,-128,    1,     2,   0,   1,      1, -45,   45, -45,   45 },
-  { 'w',  0, "WWWWWWWWWWWWW",  "AirT.",   " \1C", " \1F",  '\1', false, false, 0, 0x0F, 0,  0xffff, -40,    1,     1, -22,   9,      5,  20,  100,  70,  200 },
-  { 'o',  0, "ooooooooooooo",   "TANK",   "LevL",     "",   '%', false, false, 0, 0x2F, 0,  0xffff,   0,    1,     1,   0,   1,      1,   0,  100 ,  0,  100 },
-  { 'R',  0, "RRRRRRRRRRRRR",   "Burn",    "L/h",  "g/h",   ' ', false, false, 1, 0x5E, 0,  0xffff,   0,    1,    20,   0, 264,  20000,   0,   40,   0,   10 },
-  { 'N',  0, "RRRRRRwGGGGGG",   "Fuel",   "Trim",     "",   '%', false, true,  1, 0x06, 0,  0xffff,-128,  100,   128,-128, 100,    128, -10,   10, -10,   10 },
-  { 'n',  0, "ppppppwyyyyyy",    "A/F",   "Rtio",     "",     0, false, true,  2, 0x24, 16, 0xffff,   0,    2, 65536,   0,   2,  65536,   0,    2,   0,    2 },
-  { 'p',  0, "yyyyyybpppppp",   "O/2A",   "Volt",     "",   'V', false, true,  1, 0x14, 24, 0x00ff,  0,    1,   200,   0,   1,    200,   0,    1,   0,    1 },
-  { 'P',  0, "yyyyyycpppppp",   "O/2b",   "Volt",     "",   'V', false, true,  1, 0x15, 24, 0x00ff,  0,    1,   200,   0,   1,    200,   0,    1,   0,    1 },
+  // bank mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
+  { '4', 'W',  0, "WWWWWWWWWWWWW",  "A.Prs",   "K.PA",   "PSI",  ' ', false, false, 0, 0x0B, 0,  0xffff,   0,    1,     1,   0, 145,  1000,    0,  210,   0,   30 },
+  { '4', 'w',  0, "WWWWWWWWWWWWW",  "A.Flo",    "g/S", "Lb/m",     0, false, false, 1, 0x10, 0,  0xffff,   0,    1,   100,   0, 132, 100000,   0,  400,   0,   50 },
+  { '4', 'O',  0, "ppppppwyyyyyy",    "A/F",   "Rtio",     "",     0, false, true,  2, 0x24, 16, 0xffff,   0,    2, 65536,   0,   2,  65536,   0,    2,   0,    2 },
+  { '4', 'N',  0, "RRRRRRwGGGGGG",   "Fuel",   "Trim",     "",   '%', false, true,  1, 0x06, 0,  0xffff,-128,  100,   128,-128, 100,    128, -10,   10, -10,   10 },
+  { '4', 'n',  0, "nnnnnnwoooooo",   "TIME",  "Advc.",     "",  '\1', false, true,  1, 0x0E, 0,  0xffff,-128,    1,     2,   0,   1,      1, -45,   45, -45,   45 },
 
-  // Sensor
-  // mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
-  { 'Y',  0, "OYYYGGGgggccc",   "Batt",   "Volt",    "",    'V', false, false, 1, 0xff, 0,  0xffff,   0,    1,     1,   0,   1,      1,   10,   14,   10,  14  },
+  // Voltages
+  // bank mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
+  { '5', 'V',  0, "yyyyyybpppppp",   "O/2A",   "Volt",     "",   'V', false, true,  1, 0x14, 24, 0x00ff,   0,    1,   200,   0,   1,    200,   0,    1,    0,    1 },
+  { '5', 'v',  0, "yyyyyycpppppp",   "O/2b",   "Volt",     "",   'V', false, true,  1, 0x15, 24, 0x00ff,   0,    1,   200,   0,   1,    200,   0,    1,    0,    1 },
+  { '5', 'c',  0, "OYYYGGGgggccc",   "Batt",   "Volt",    "",    'V', false, false, 1, 0xff, 0,  0xffff,   0,    1,     1,   0,   1,      1,   10,   14,   10,  14 },
 };
 
 //------------------------------------------------------
@@ -155,7 +155,6 @@ static bool ds_debugModeEnabled = DEBUG_DEFAULT_VALUE;
 static int  ds_testProtocol = OBD_PROTOCOL_FIRST - 1;
 static struct DisplayablesOutputProvider *ds_output;
 static struct MenuControlsProvider *ds_controls;
-static DisplayableItem ds_itemObject;
 
 struct DisplayablePersistedState {
   int version;
@@ -180,11 +179,33 @@ struct DisplayablePersistedState {
 static struct DisplayablePersistedState ds_persistedState;
 
 struct DisplayableItem *ds_getDisplayableObject(int index) {
-  memcpy_P(&ds_itemObject, (__FlashStringHelper*)&menu_rawDisplayables[index], sizeof(ds_itemObject));  
-  return &ds_itemObject;
+  return &menu_displayables[index];
 }
 struct DisplayableItem *ds_getCurrentDisplayableObject() {
   return ds_getDisplayableObject(ds_persistedState.currentItemIndex);
+}
+
+bool ds_isDisplayableHidden(int index) {
+  return !!(ds_persistedState.itemsHiddenMask & (1L << index));
+} 
+
+int ds_itemIndexFromVisibleIndex(int index) {
+  for (int i=0; i<DISPLAYABLE_ITEM_COUNT; i++) {
+    if (!ds_isDisplayableHidden(i)) {
+      if (--index < 0) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+void ds_hideItem(int index) {
+  ds_persistedState.itemsHiddenMask |= (1L << index);
+}
+
+void ds_showItem(int index) {
+  ds_persistedState.itemsHiddenMask &= ~(1L << index);
 }
 
 void ds_loadPersistedState() {
@@ -212,7 +233,7 @@ void ds_loadPersistedState() {
   if (ds_persistedState.demoModeEnabled < 0 || ds_persistedState.demoModeEnabled > 1) ds_persistedState.demoModeEnabled = DEMO_DEFAULT_VALUE;
   if (ds_persistedState.gearCount < 0 || ds_persistedState.gearCount > GEAR_MAX_COUNT) {
     ds_persistedState.gearCount = 5;
-    ds_persistedState.gears[0] = 200 / 1.6 + 0.8;
+    ds_persistedState.gears[0] = 180 / 1.6 + 0.8;
     ds_persistedState.gears[1] = 100 / 1.6 + 0.8;
     ds_persistedState.gears[2] = 70 / 1.6 + 0.8;
     ds_persistedState.gears[3] = 50 / 1.6 + 0.8;
@@ -260,11 +281,16 @@ void ds_showStatusByte(int num) {
   ds_controls->smartDelay(1000);
 }
 
+void ds_showSweep(char color, int mode) {
+  ds_output->showSweep(color, mode);
+}
+
 struct ObdOutputProvider ds_outputProvider = {
   ds_showStatusString,
   ds_showStatusString_P,
   ds_showStatusInteger,
   ds_showStatusByte,
+  ds_showSweep
 };
 
 //------------------------------------------------------
@@ -293,13 +319,20 @@ char *ds_getDisplayableTitle2() {
   }
 } 
 
-char ds_getDisplayableColor() {
-  return ds_getCurrentDisplayableObject()->menuColor;
-} 
+char ds_getDisplayableColor(int index, int current, MenuDataSource *ds) {
+  if (index == current) return ds_getCurrentDisplayableObject()->menuColor;
 
-bool ds_isDisplayableHidden(int index) {
-  return !!(ds_persistedState.itemsHiddenMask & (1L << index));
-} 
+  int currentItem = ds_itemIndexFromVisibleIndex(current);
+  int indexItem = ds_itemIndexFromVisibleIndex(index);
+
+  if (currentItem >= 0 && indexItem >= 0) {
+    char currentBank = menu_displayables[currentItem].bankColor;  
+    char indexBank = menu_displayables[indexItem].bankColor;  
+
+    if (currentBank == indexBank) return currentBank;
+   }
+   return ds->defaultColor;
+}
 
 bool ds_displayableLongPressAction(int current, int button, MenuDataSource *ds) {
 
@@ -339,14 +372,14 @@ static struct MenuDataSource ds_menuDataSource = {
 // Private (gear support)
 //------------------------------------------------------
 
-static long gearRpkTable[(GEAR_RPK_MAX - GEAR_RPK_MIN)/GEAR_RPK_INTERVAL+1];
+static long gearRpkTable[(GEAR_NV_MAX - GEAR_NV_MIN)/GEAR_NV_INTERVAL+1];
 static long gearRpkSamplingMsRemaining = 0;
 
 void ds_startGearDetect() {
   memset(gearRpkTable, 0, sizeof(gearRpkTable));
   gearRpkSamplingMsRemaining = GEAR_DETECT_TIME;
   ds_persistedState.currentItemIndex = ds_lastItemIndex = DISPLAYABLE_ITEM_GEAR;
-  ds_output->showSweep('G');
+  ds_output->showSweep('G', SWEEP_MODE_RIGHT_LEFT);
 }
 
 int compareGears(const void *a, const void *b) {
@@ -366,7 +399,7 @@ int ds_showGears(void) {
   ds_controls->smartDelay(700);
   ds_output->showFloatValue((float)ds_persistedState.gearCount, 0, 0, false);
   ds_controls->smartDelay(700);
-  ds_output->showStatusString("gear");
+  ds_output->showStatusString("GEAr");
   ds_controls->smartDelay(1000);
 
   for (int i=0; i<ds_persistedState.gearCount; i++) {
@@ -403,10 +436,10 @@ void ds_removeGear(void) {
 void ds_editGear(int gear) {
   if (gear < 0 || gear >= ds_persistedState.gearCount) return;
 
-  char *title = "nvSI";
+  char *title = "NvSI";
   float mult = 1;
   if (ds_persistedState.itemsUsingAltUnitsMask & (1L << DISPLAYABLE_ITEM_GEAR)) {
-    title = "nvUS";
+    title = "NvUS";
     mult = 1.0/0.6214;
   }
 
@@ -419,8 +452,8 @@ void ds_updateGears() {
   memset(ds_persistedState.gears, 0, sizeof(ds_persistedState.gears));
   int count = 0;
 
-  for (long rpk = GEAR_RPK_MAX-GEAR_RPK_INTERVAL-1; rpk >= GEAR_RPK_MIN+GEAR_RPK_INTERVAL; rpk -= GEAR_RPK_INTERVAL) {
-    int j = (rpk - GEAR_RPK_MIN + GEAR_RPK_INTERVAL/2) / GEAR_RPK_INTERVAL;
+  for (long rpk = GEAR_NV_MAX-GEAR_NV_INTERVAL-1; rpk >= GEAR_NV_MIN+GEAR_NV_INTERVAL; rpk -= GEAR_NV_INTERVAL) {
+    int j = (rpk - GEAR_NV_MIN + GEAR_NV_INTERVAL/2) / GEAR_NV_INTERVAL;
 
     // Find local maxima
     if (gearRpkTable[j] > gearRpkTable[j-1] && gearRpkTable[j] >= gearRpkTable[j+1] && 
@@ -433,8 +466,8 @@ void ds_updateGears() {
 }
 
 void ds_updateGearTable(float rpk) {
-  if (rpk >= GEAR_RPK_MIN && rpk <= GEAR_RPK_MAX) {
-    int index = (rpk - GEAR_RPK_MIN + GEAR_RPK_INTERVAL/2) / GEAR_RPK_INTERVAL;
+  if (rpk >= GEAR_NV_MIN && rpk <= GEAR_NV_MAX) {
+    int index = (rpk - GEAR_NV_MIN + GEAR_NV_INTERVAL/2) / GEAR_NV_INTERVAL;
     gearRpkTable[index] ++;
   }
   ds_updateGears();
@@ -551,12 +584,12 @@ void ds_autoScanItemsAt(int base) {
 
     if (item->pid >= base + 1 && item->pid <= base + 0x20) {
       if (mask & (0x80000000L >> (item->pid - base - 1))) {
-        ds_persistedState.itemsHiddenMask &= ~(1L << i);
+        ds_showItem(i);
       } else {
-        ds_persistedState.itemsHiddenMask |= (1L << i);
+        ds_hideItem(i);
       }
     } else if (item->pid == 0xff) {
-      ds_persistedState.itemsHiddenMask &= ~(1L << i);
+      ds_showItem(i);
     }
   }
 
@@ -573,20 +606,21 @@ void ds_autoScanItems(void) {
   ds_autoScanItemsAt(0x40);
 
   // If speed and airflow are available, enable burn rate since we can estimate it
-  if (!(ds_persistedState.itemsHiddenMask & (1L << DISPLAYABLE_ITEM_SPEED)) &&
-      !(ds_persistedState.itemsHiddenMask & (1L << DISPLAYABLE_ITEM_INTAKE_AIR_FLOW))) {
-    ds_persistedState.itemsHiddenMask &= ~(1L << DISPLAYABLE_ITEM_FUEL_BURN_RATE);
+  if (!ds_isDisplayableHidden(DISPLAYABLE_ITEM_SPEED) &&
+      !ds_isDisplayableHidden(DISPLAYABLE_ITEM_INTAKE_AIR_FLOW)) {
+    ds_showItem(DISPLAYABLE_ITEM_FUEL_BURN_RATE);
   }
 
   // Hide calculated fields requiring burn rate if unavailable
-  if (ds_persistedState.itemsHiddenMask & (1L << DISPLAYABLE_ITEM_FUEL_BURN_RATE)) {
-    ds_persistedState.itemsHiddenMask |= ((1L << DISPLAYABLE_ITEM_TOTAL_FUEL) | (1L << DISPLAYABLE_ITEM_AVERAGE_EFFICIENCY));
+  if (ds_isDisplayableHidden(DISPLAYABLE_ITEM_FUEL_BURN_RATE)) {
+    ds_showItem(DISPLAYABLE_ITEM_TOTAL_FUEL);
+    ds_showItem(DISPLAYABLE_ITEM_AVERAGE_EFFICIENCY);
   }
   ds_savePersistedState();
 
   int count = 0;
   for (int i=0; i<DISPLAYABLE_ITEM_COUNT; i++) {
-    if ((ds_persistedState.itemsHiddenMask & (1L << i)) == 0) {
+    if (!ds_isDisplayableHidden(i)) {
       count ++;
     }
   }
@@ -597,11 +631,11 @@ void ds_autoScanItems(void) {
 }
 
 void ds_hideCurrentItem(void) {
-  ds_persistedState.itemsHiddenMask |= (1L << ds_persistedState.currentItemIndex);
+  ds_hideItem(ds_persistedState.currentItemIndex);
 
   // Find next visible item  
   for (ds_persistedState.currentItemIndex++; ds_persistedState.currentItemIndex < DISPLAYABLE_ITEM_COUNT; ds_persistedState.currentItemIndex++) {
-    if (!(ds_persistedState.itemsHiddenMask & (1L << ds_persistedState.currentItemIndex))) {
+    if (!ds_isDisplayableHidden(ds_persistedState.currentItemIndex)) {
       ds_savePersistedState();
       return;
     }
@@ -613,8 +647,8 @@ void ds_hideCurrentItem(void) {
 
 void ds_showItemByName(char *name) {
   for (int i=0; i<DISPLAYABLE_ITEM_COUNT; i++) {
-    if (!strcmp(name, ds_getDisplayableObject(i)->name) && (ds_persistedState.itemsHiddenMask & (1L << i))) {
-      ds_persistedState.itemsHiddenMask &= ~(1L << i);
+    if (!strcmp(name, ds_getDisplayableObject(i)->name) && ds_isDisplayableHidden(i)) {
+      ds_showItem(i);
       ds_savePersistedState();
       return;
     }
@@ -755,22 +789,29 @@ void ds_clearDtcCodes(void) {
 }
 
 void ds_toggleLoopMode(void) {
+  // When on, cycles automatically through all enabled gauges
   ds_persistedState.loopModeEnabled = !ds_persistedState.loopModeEnabled;
   ds_savePersistedState();
 }
 
 void ds_toggleDemoMode(void) {
+  // Run using faked response values; useful to test display without ECU
   ds_persistedState.demoModeEnabled = !ds_persistedState.demoModeEnabled;
   ds_savePersistedState();
 }
 
 void ds_toggleDebugMode(void) {
+  // When on, prints the output of any responses received
   ds_debugModeEnabled = !ds_debugModeEnabled;
 }
 
 void ds_enterSniffMode(int mode) {
   ds_debugModeEnabled = true; // disable pings
 
+  // Go in a loop listening for any activity
+  // on the bus, printing any we find.  Use with 
+  // a Y cable to snoop on communications between
+  // the ECU and another device (scan tool)
   while (!ds_controls->isButton1Down()) {
     vobd.receivePidResponse(0x0, 0, false, mode + 1);
 
@@ -779,7 +820,7 @@ void ds_enterSniffMode(int mode) {
   unsigned long end = millis();
   while (ds_controls->isButton1Down() && ds_controls->isButton2Down() && millis() < end+2000L) {}
 
-  ds_debugModeEnabled = false; // disable pings
+  ds_debugModeEnabled = false; // re-enable pings
 }
 
 void ds_setFuelAdjustment(void) {
@@ -808,6 +849,7 @@ bool ds_isCurrentItemMultiUnit(void) {
 }
 
 bool ds_isCurrentItemComputed(void) {
+  // Hides these items from "info" menu showing raw data associated with gauge
   switch (ds_persistedState.currentItemIndex) {
     case DISPLAYABLE_ITEM_TOTAL_DISTANCE:
     case DISPLAYABLE_ITEM_TOTAL_TIME:
@@ -1044,13 +1086,13 @@ extern void VDisplayables::setup(int inPin, int outPin, int powerAnalogPin, stru
 
       if (b1 && b2) {
         ds_clearPersistedState();
-        ds_output->showSweep('b');
+        ds_output->showSweep('b', SWEEP_MODE_RIGHT_LEFT);
       } else if (b1) {
         ds_enterSniffMode(1);
-        ds_output->showSweep('v');
+        ds_output->showSweep('v', SWEEP_MODE_RIGHT_LEFT);
       } else {
         ds_enterSniffMode(0);
-        ds_output->showSweep('y');
+        ds_output->showSweep('y', SWEEP_MODE_RIGHT_LEFT);
       }
       break;
     }
@@ -1088,7 +1130,7 @@ extern void VDisplayables::mainLoop() {
   // Connect if needed
   if (!vobd.isConnected()) {
     ds_output->showStatusString_P(PSTR("Init"));
-    ds_output->showSweep('r');
+    ds_output->showSweep('r', SWEEP_MODE_RIGHT_LEFT);
 
     // Show error counts
     if (ds_debugModeEnabled) {
@@ -1119,9 +1161,9 @@ extern void VDisplayables::mainLoop() {
     ds_connecting = true; ds_showStatusState();
 
     switch(ds_testProtocol) {
-      case OBD_PROTOCOL_ISO_9141: ds_output->showStatusString_P(PSTR("9141")); break;
-      case OBD_PROTOCOL_KWP_SLOW: ds_output->showStatusString_P(PSTR("Slow")); ds_controls->smartDelay(300); ds_output->showStatusString_P(PSTR("2000")); break;
-      case OBD_PROTOCOL_KWP_FAST: ds_output->showStatusString_P(PSTR("Fast")); ds_controls->smartDelay(300); ds_output->showStatusString_P(PSTR("2000")); break;
+      case OBD_PROTOCOL_ISO_9141: ds_output->showStatusString_P(PSTR("9141")); ds_output->showSweep('o', SWEEP_MODE_UP); break;
+      case OBD_PROTOCOL_KWP_SLOW: ds_output->showStatusString_P(PSTR("Slow")); ds_output->showSweep('c', SWEEP_MODE_UP);ds_controls->smartDelay(50); ds_output->showStatusString_P(PSTR("2000")); break;
+      case OBD_PROTOCOL_KWP_FAST: ds_output->showStatusString_P(PSTR("Fast")); ds_output->showSweep('v', SWEEP_MODE_UP);ds_controls->smartDelay(50); ds_output->showStatusString_P(PSTR("2000")); break;
     }
 
     vobd.connect(ds_testProtocol,  ds_persistedState.demoModeEnabled);
@@ -1214,10 +1256,18 @@ extern bool VDisplayables::updateCurrentItemValue() {
       case DISPLAYABLE_ITEM_TOTAL_DISTANCE:
       case DISPLAYABLE_ITEM_TOTAL_FUEL:
         demoValue += step/700;
+        if (demoValue >= maxVal) {
+          demoValue = 0;
+        }
         break;
       case DISPLAYABLE_ITEM_BATTERY_VOLTS:
         demoValue = analogRead(ds_powerAnalogPin) * (5.0 * BATTERY_VOLTAGE_DIVIDE / 1023.0);
         break;
+      case DISPLAYABLE_ITEM_GEAR:
+        minVal = GEAR_NV_MIN;
+        maxVal = GEAR_NV_MAX;
+        step = (maxVal - minVal)/50;
+        // fallthru
       default:
         if (demoValueIncrements) {
           if (demoValue > maxVal-step) { demoValue = maxVal-step; demoValueIncrements = false; }
@@ -1289,18 +1339,6 @@ extern bool VDisplayables::updateCurrentItemValue() {
 
       case DISPLAYABLE_ITEM_TOTAL_TIME:
         fvalue = ds_persistedState.totalElapsedSeconds;
-        fvalue2 = ((long)ds_persistedState.totalElapsedSeconds % 13) * (60.0 / 13);
-        suffix = 's';
-        if (fvalue > 60) {
-          fvalue /= 60;
-          suffix = 'm';
-          if (fvalue > 60) {
-            fvalue /= 60;
-            suffix = 'h';
-          }
-        }
-        // Convert fraction to fraction of 60
-        fvalue = floor(fvalue) + (fvalue-floor(fvalue))*(60.0/100.0);
         break;
         
       case DISPLAYABLE_ITEM_TOTAL_FUEL:
@@ -1372,9 +1410,11 @@ extern bool VDisplayables::updateCurrentItemValue() {
         value &= disp->mask;
         fvalue = (float)value;
 
+        //
         // Do special gear calculation
+        //
         if (ds_persistedState.currentItemIndex == DISPLAYABLE_ITEM_GEAR) {
-          // NV Ratio is RPM/KPH
+          // NV Ratio is engine-speed/vehicle-speed (RPM/KPH)
           float rpm = fvalue / 4;
           if (speedValue == 0) fvalue = 0;
           else fvalue = rpm / speedValue;
@@ -1387,13 +1427,32 @@ extern bool VDisplayables::updateCurrentItemValue() {
               ds_savePersistedState();
 
               // Show final gear values
-              ds_output->showSweep('R');
+              ds_output->showSweep('R', SWEEP_MODE_RIGHT_LEFT);
 
               ds_showGears();
             }
           }
         }
     }
+  }
+
+  //
+  // COMMON TO LIVE/DEMO
+  //
+  switch (ds_persistedState.currentItemIndex) {
+      case DISPLAYABLE_ITEM_TOTAL_TIME:
+        fvalue2 = ((long)ds_persistedState.totalElapsedSeconds % 13) * (60.0 / 13);
+        suffix = 's';
+        if (fvalue > 60) {
+          fvalue /= 60;
+          suffix = 'm';
+          if (fvalue > 60) {
+            fvalue /= 60;
+            suffix = 'h';
+          }
+        }
+        // Convert fraction to fraction of 60
+        fvalue = floor(fvalue) + (fvalue-floor(fvalue))*(60.0/100.0);
   }
 
   // Show Gear

@@ -13,7 +13,7 @@ int   mn_defaultGetCurrentItem      (MenuDataSource *ds) { return ds->alternateC
 void  mn_defaultSetCurrentItem      (int index, MenuDataSource *ds) { ds->alternateCurrentItem = index; }
 char *mn_defaultGetCurrentItemTitle1(MenuDataSource *ds) { return ds->alternateTitles1 ? ds->alternateTitles1[ds->getCurrentItem(ds)] : ""; }
 char *mn_defaultGetCurrentItemTitle2(MenuDataSource *ds) { return ds->alternateTitles2 ? ds->alternateTitles2[ds->getCurrentItem(ds)] : ""; }
-char  mn_defaultGetCurrentItemColor (MenuDataSource *ds) { return ds->alternateColors ? ds->alternateColors[ds->getCurrentItem(ds)] : 'w'; }
+char  mn_defaultGetItemColor        (int index, int current, MenuDataSource *ds) { return index == current ? (ds->alternateColors ? ds->alternateColors[ds->getCurrentItem(ds)] : 'w') : ds->defaultColor; }
 bool  mn_defaultIsItemHidden        (int index, MenuDataSource *ds) { return false; }
 bool  mn_defaultLongPressAction     (int index, MenuDataSource *ds) { return true; }
  
@@ -86,7 +86,7 @@ extern void VMenu::setup(struct MenuDataSource *data, struct MenuDisplayProvider
   if (!dataSource->setCurrentItem) dataSource->setCurrentItem = mn_defaultSetCurrentItem;
   if (!dataSource->getCurrentItemTitle1) dataSource->getCurrentItemTitle1 = mn_defaultGetCurrentItemTitle1;
   if (!dataSource->getCurrentItemTitle2) dataSource->getCurrentItemTitle2 = mn_defaultGetCurrentItemTitle2;
-  if (!dataSource->getCurrentItemColor) dataSource->getCurrentItemColor = mn_defaultGetCurrentItemColor;
+  if (!dataSource->getItemColor) dataSource->getItemColor = mn_defaultGetItemColor;
   if (!dataSource->isItemHidden) dataSource->isItemHidden = mn_defaultIsItemHidden;
   if (!dataSource->longPressAction) dataSource->longPressAction = mn_defaultLongPressAction;
   if (!dataSource->shortPressAction) dataSource->shortPressAction = mn_defaultLongPressAction;
@@ -112,13 +112,14 @@ extern bool VMenu::mainLoop(bool showCurrent) {
   if (itemCount) while (advance || showCurrent) {
     // Update current index
     int current = mn_getCurrentVisibleItem(dataSource);
+    char currentColor = dataSource->getItemColor(current, current, dataSource);
 
     // Show light for old item
-    display->highlightItem(current, dataSource->getCurrentItemColor(dataSource), itemCount, dataSource->defaultColor);
+    display->highlightItem(current, currentColor, itemCount, dataSource);
     if (advance) {
-      display->highlightItem(current, 'k', itemCount, dataSource->defaultColor);
+      display->highlightItem(current, 'k', itemCount, dataSource);
       controls->smartDelay(100);
-      display->highlightItem(current, dataSource->getCurrentItemColor(dataSource), itemCount, dataSource->defaultColor);
+      display->highlightItem(current, currentColor, itemCount, dataSource);
     }
 
     // Wait for button up
@@ -134,14 +135,14 @@ extern bool VMenu::mainLoop(bool showCurrent) {
  
         // Wait for button up flashing menu item
         while ((controls->isButton1Down() || controls->isButton2Down()) && millis() < start + 1500) {
-          display->highlightItem(current, millis() > start + 1000 || ((millis()-start)&128) ? dataSource->getCurrentItemColor(dataSource) : 'k', itemCount, dataSource->defaultColor);
+          display->highlightItem(current, millis() > start + 1000 || ((millis()-start)&128) ? currentColor : 'k', itemCount, dataSource);
         }
 
         // Handle super long press (backup, button 1 only)
         if (controls->isButton1Down()) {
           current = (current + itemCount- 1) % itemCount;
           mn_setCurrentVisibleItem(dataSource, current);
-          display->highlightItem(current, dataSource->getCurrentItemColor(dataSource), itemCount, dataSource->defaultColor);
+          display->highlightItem(current, currentColor, itemCount, dataSource);
           advance = 0;
 
           while (controls->isButton1Down() || controls->isButton2Down()) {}
@@ -175,7 +176,7 @@ extern bool VMenu::mainLoop(bool showCurrent) {
     advance = showCurrentItem(true);
 
     // Clear ring
-    display->highlightItem(current, 'k', itemCount, dataSource->defaultColor);
+    display->highlightItem(current, 'k', itemCount, dataSource);
 
     showCurrent = false;
   }
@@ -185,12 +186,12 @@ extern bool VMenu::mainLoop(bool showCurrent) {
 extern int VMenu::showCurrentItem(bool abortable) {
   int current = mn_getCurrentVisibleItem(dataSource);
 
-  display->highlightItem(current, dataSource->getCurrentItemColor(dataSource), mn_getVisibleItemCount(dataSource), dataSource->defaultColor);
+  display->highlightItem(current, dataSource->getItemColor(current, current, dataSource), mn_getVisibleItemCount(dataSource), dataSource);
   return mn_showTitles(dataSource->getCurrentItemTitle1(dataSource), dataSource->getCurrentItemTitle2(dataSource), display, abortable ? controls : NULL);
 }
 
 extern void VMenu::highlightCurrentItem() {
   int current = mn_getCurrentVisibleItem(dataSource);
 
-  display->highlightItem(current, dataSource->getCurrentItemColor(dataSource), mn_getVisibleItemCount(dataSource), dataSource->defaultColor);
+  display->highlightItem(current, dataSource->getItemColor(current, current, dataSource), mn_getVisibleItemCount(dataSource), dataSource);
 }

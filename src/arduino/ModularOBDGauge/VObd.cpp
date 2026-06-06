@@ -1,3 +1,4 @@
+#include "VDisplayables.h" // for sweep enums
 #include "VObd.h"
 #include <Arduino.h>
 
@@ -327,16 +328,28 @@ int VObd::kwpSlowInit(int proto, bool demoMode) {
 
   if (output) { 
     char buf[6];
+
+    // Show keybytes we got
+    output->showSweep('y', SWEEP_MODE_DOWN);
     snprintf_P(buf, 6, PSTR("%02X%02X"), (int)keyByte1, (int)keyByte2);
+    output->showStatusString(buf);    
+    smartDelay(220);
+
+    // Show response we sent
+//  snprintf_P(buf, 6, PSTR("\x03%02X\x03"), (int)response[0]);
+    snprintf_P(buf, 6, PSTR(" %02X "), (int)response[0]);
     output->showStatusString(buf);
-    smartDelay(500);
-    snprintf_P(buf, 6, PSTR("\x03%02X\x03"), (int)response[0]);
-    output->showStatusString(buf);
-    smartDelay(500);
+    output->showSweep('l', SWEEP_MODE_UP);
+    smartDelay(220);
+
+    // Show ready signal we got back
     if (byteCount < 1) {
+      output->showSweep('r', SWEEP_MODE_DOWN);
       output->showStatusString_P(PSTR("Ack!")); smartDelay(500); output->showStatusInteger(byteCount);      
     } else {
-      snprintf_P(buf, 5, PSTR("_%02X_"), (int)bytes[0]);
+      output->showSweep('g', SWEEP_MODE_DOWN);
+//    snprintf_P(buf, 5, PSTR("_%02X_"), (int)bytes[0]);
+      snprintf_P(buf, 5, PSTR(" %02X "), (int)bytes[0]);
       output->showStatusString(buf);
     }
   }
@@ -356,7 +369,9 @@ int VObd::kwpSlowInit(int proto, bool demoMode) {
   // 8F EF KWP2000
   //
   if (keyByte1 == keyByte2 && proto == OBD_PROTOCOL_KWP_SLOW) {
-    if (output) { output->showStatusString_P(PSTR("9141")); }
+    if (output) { 
+      output->showStatusString_P(PSTR("9141")); 
+    }
     smartDelay(100);
     return OBD_PROTOCOL_ISO_9141;
   }

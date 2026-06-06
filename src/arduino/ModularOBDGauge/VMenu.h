@@ -12,10 +12,10 @@ struct MenuDataSource {
   void  (*setCurrentItem)(int index, MenuDataSource *);   // optional
   char *(*getCurrentItemTitle1)(MenuDataSource *);        // optional
   char *(*getCurrentItemTitle2)(MenuDataSource *);        // optional
-  char  (*getCurrentItemColor)(MenuDataSource *);         // optional
+  char  (*getItemColor)(int index, int current, MenuDataSource *);    // optional
   bool  (*isItemHidden)(int index, MenuDataSource *);     // optional
   bool  (*longPressAction)(int index, int button, MenuDataSource *);  // optional
-  bool  (*shortPressAction)(int index, int button, MenuDataSource *);  // optional
+  bool  (*shortPressAction)(int index, int button, MenuDataSource *); // optional
   char defaultColor;
 
   int alternateCurrentItem;
@@ -25,7 +25,7 @@ struct MenuDataSource {
 };
 
 struct MenuDisplayProvider {
-  void  (*highlightItem)(int index, char color, int count, char defaultColor);
+  void  (*highlightItem)(int index, char color, int count, MenuDataSource *ds);
   void  (*showItemTitle)(char *title);
 };
 

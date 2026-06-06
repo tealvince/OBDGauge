@@ -72,7 +72,12 @@ struct ObdOutputProvider {
   void  (*showStatusString_P)(char *text);
   void  (*showStatusInteger)(int num);
   void  (*showStatusByte)(int num);
+  void  (*showSweep)(char color, int mode);
 };
+
+#define SWEEP_MODE_RIGHT_LEFT 0
+#define SWEEP_MODE_UP         1
+#define SWEEP_MODE_DOWN       2
 
 class VObd {
   private:
