@@ -1,4 +1,4 @@
-#define BUILD_VERSION "1.8"
+#define BUILD_VERSION "2.2"
 
 #define WOKWI false
 
@@ -14,9 +14,9 @@
 #define SERIAL_MAX_FLIPS (SERIAL_MAX_BYTES*10)
 
 #if BOARD_REV == 1
-  #define BATTERY_VOLTAGE_DIVIDE (30+10)/10 // REV 1 board
+  #define BATTERY_VOLTAGE_DIVIDE (30.0+10)/10 // REV 1 board
 #elif BOARD_REV == 2
-  #define BATTERY_VOLTAGE_DIVIDE (47+10)/10 // REV 2 board (updates 47/10 voltage divider, wires analog volt in, adds 510 pullup)
+  #define BATTERY_VOLTAGE_DIVIDE (47.0+10)/10 // REV 2 board (updates 47/10 voltage divider, wires analog volt in, adds 510 pullup)
 #else
-  #define BATTERY_VOLTAGE_DIVIDE (47/2+10)/10 // REV 3 board (updates 23.5/10 voltage divider)
+  #define BATTERY_VOLTAGE_DIVIDE (47.0/2+10)/10 // REV 3 board (updates 23.5/10 voltage divider)
 #endif

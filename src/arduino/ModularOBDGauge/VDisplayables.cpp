@@ -72,27 +72,28 @@ struct DisplayableItem {
 #define DISPLAYABLE_ITEM_GFORCE             5
 #define DISPLAYABLE_ITEM_HORSEPOWER         6
 #define DISPLAYABLE_ITEM_GEAR               7
+#define DISPLAYABLE_ITEM_NV_RATIO           8
 
-#define DISPLAYABLE_ITEM_SPEED              8
-#define DISPLAYABLE_ITEM_TACHOMETER         9
-#define DISPLAYABLE_ITEM_COOLANT_TEMP       10
-#define DISPLAYABLE_ITEM_INTAKE_AIR_PRES    11
-#define DISPLAYABLE_ITEM_INTAKE_AIR_FLOW    12
-#define DISPLAYABLE_ITEM_THROTTLE_PERCENT   13
+#define DISPLAYABLE_ITEM_SPEED              9
+#define DISPLAYABLE_ITEM_TACHOMETER         10
+#define DISPLAYABLE_ITEM_COOLANT_TEMP       11
+#define DISPLAYABLE_ITEM_INTAKE_AIR_PRES    12
+#define DISPLAYABLE_ITEM_INTAKE_AIR_FLOW    13
+#define DISPLAYABLE_ITEM_THROTTLE_PERCENT   14
 
-#define DISPLAYABLE_ITEM_ENGINE_LOAD        14
-#define DISPLAYABLE_ITEM_TIMING_ADVANCE     15
-#define DISPLAYABLE_ITEM_INTAKE_TEMP        16
-#define DISPLAYABLE_ITEM_FUEL_TANK_LEVEL    17
-#define DISPLAYABLE_ITEM_FUEL_BURN_RATE     18
-#define DISPLAYABLE_ITEM_AIR_FUEL_TRIM.     19
-#define DISPLAYABLE_ITEM_AIR_FUEL_EQRATIO   20
-#define DISPLAYABLE_ITEM_OXY_SENSOR_A_VOLTS 21
-#define DISPLAYABLE_ITEM_OXY_SENSOR_B_VOLTS 22
+#define DISPLAYABLE_ITEM_ENGINE_LOAD        15
+#define DISPLAYABLE_ITEM_TIMING_ADVANCE     16
+#define DISPLAYABLE_ITEM_INTAKE_TEMP        17
+#define DISPLAYABLE_ITEM_FUEL_TANK_LEVEL    18
+#define DISPLAYABLE_ITEM_FUEL_BURN_RATE     19
+#define DISPLAYABLE_ITEM_AIR_FUEL_TRIM.     20
+#define DISPLAYABLE_ITEM_AIR_FUEL_EQRATIO   21
+#define DISPLAYABLE_ITEM_OXY_SENSOR_A_VOLTS 22
+#define DISPLAYABLE_ITEM_OXY_SENSOR_B_VOLTS 23
 
-#define DISPLAYABLE_ITEM_BATTERY_VOLTS      23
+#define DISPLAYABLE_ITEM_BATTERY_VOLTS      24
 
-#define DISPLAYABLE_ITEM_COUNT 24
+#define DISPLAYABLE_ITEM_COUNT 25
 
 static const DisplayableItem menu_displayables[] = {
   // Accumulated
@@ -108,6 +109,7 @@ static const DisplayableItem menu_displayables[] = {
   { '2', 'l','w', "rrrooowgggbbb",  "F.Acc",    "Gee",       "",   0, false,  true, 2, 0x0d, 0,  0xffff,   0,    1,     1,   0,   1,     1,   -1,      1,-1,    1 },
   { '2', 'L','w', "yyyyoooorrrrr",  "P.Out", "\4\5PS", "\4\5HP",   0, false, false, 0, 0x0d, 0,  0xffff,   0,    1,     1,   0,   1,     1,    0,    300, 0,  300 },
   { '2', 'W','w', "nnnnnnnnnnnnn",   "GEAr",   "NvSI",   "NvUS",   0, false, false, 0, 0x0c, 0,  0xffff,   0,    1,     1,   0, 1000,  621,    1,      8, 1,    8 },
+  { '2', 'n','w', "ooooooooooooo",   "N/V",    "NvSI",   "NvUS",   0, false, false, 0, 0x0c, 0,  0xffff,   0,    1,     1,   0, 1000,  621,    1,      8, 1,    8 },
 
   // Bank1
   // bank mnu spt  colors           name       unit1   unit2     suf  plus   center dec pid shft mask     off1  mult1  div1 off2 mult2 div2  min1 max1  min2 max2     
@@ -233,11 +235,11 @@ void ds_loadPersistedState() {
   if (ds_persistedState.demoModeEnabled < 0 || ds_persistedState.demoModeEnabled > 1) ds_persistedState.demoModeEnabled = DEMO_DEFAULT_VALUE;
   if (ds_persistedState.gearCount < 0 || ds_persistedState.gearCount > GEAR_MAX_COUNT) {
     ds_persistedState.gearCount = 5;
-    ds_persistedState.gears[0] = 180 / 1.6 + 0.8;
-    ds_persistedState.gears[1] = 100 / 1.6 + 0.8;
-    ds_persistedState.gears[2] = 70 / 1.6 + 0.8;
-    ds_persistedState.gears[3] = 50 / 1.6 + 0.8;
-    ds_persistedState.gears[4] = 40 / 1.6 + 0.8;
+    ds_persistedState.gears[0] = 225 / 1.6 + 0.8;
+    ds_persistedState.gears[1] = 125 / 1.6 + 0.8;
+    ds_persistedState.gears[2] = 75 / 1.6 + 0.8;
+    ds_persistedState.gears[3] = 55 / 1.6 + 0.8;
+    ds_persistedState.gears[4] = 45 / 1.6 + 0.8;
   }
   if (ds_persistedState.kgWeight < WEIGHT_MIN || ds_persistedState.kgWeight > WEIGHT_MAX) ds_persistedState.kgWeight = WEIGHT_DEFAULT;
 
@@ -858,6 +860,7 @@ bool ds_isCurrentItemComputed(void) {
     case DISPLAYABLE_ITEM_AVERAGE_EFFICIENCY:
     case DISPLAYABLE_ITEM_BATTERY_VOLTS:
     case DISPLAYABLE_ITEM_GEAR:
+    case DISPLAYABLE_ITEM_NV_RATIO:
     case DISPLAYABLE_ITEM_GFORCE:
     case DISPLAYABLE_ITEM_HORSEPOWER:
       return true;
@@ -1215,6 +1218,7 @@ extern void VDisplayables::mainLoop() {
 }
 
 static unsigned long lastMillis = 0;
+static float lastValue = 0;
 static float lastDemoValue = 0;
 static float lastSpeedValue = 0;
 static float demoValue = 0;
@@ -1263,6 +1267,7 @@ extern bool VDisplayables::updateCurrentItemValue() {
       case DISPLAYABLE_ITEM_BATTERY_VOLTS:
         demoValue = analogRead(ds_powerAnalogPin) * (5.0 * BATTERY_VOLTAGE_DIVIDE / 1023.0);
         break;
+      case DISPLAYABLE_ITEM_NV_RATIO:
       case DISPLAYABLE_ITEM_GEAR:
         minVal = GEAR_NV_MIN;
         maxVal = GEAR_NV_MAX;
@@ -1301,7 +1306,9 @@ extern bool VDisplayables::updateCurrentItemValue() {
     long mafValue = -1;
 
     float deltaSpeedValue = speedValue - lastSpeedValue;
-    lastSpeedValue = speedValue;
+    if (deltaMs > 0) {
+      lastSpeedValue = speedValue;
+    }
 
     // Speed should be supported by everything, so return error if no
     if (speedValue == -1) return false;
@@ -1368,16 +1375,32 @@ extern bool VDisplayables::updateCurrentItemValue() {
 
       case DISPLAYABLE_ITEM_GFORCE:
         // Km/H / ms * 1000m/Km * H/3600s * 1000ms/s * G*s*s/9.8m
-        fvalue = (deltaMs > 0) ? deltaSpeedValue / deltaMs * 1000.0 / 3600.0 * 1000.0 / 9.8 : 0;
+        if (deltaMs > 0) {
+          fvalue = deltaSpeedValue / ((double)deltaMs) * 1000.0 / 3600.0 * 1000.0 / 9.8;
+
+          // Smoothing
+          float gain = min(((double)deltaMs)/1000.0, 1.0); // adjustable
+          fvalue = gain * fvalue + (1.0-gain) * lastValue;
+          lastValue = fvalue;
+        } else {
+          fvalue = lastValue;
+        }
         break;
 
       case DISPLAYABLE_ITEM_HORSEPOWER:
-        {
-          float g = (deltaMs > 0) ? deltaSpeedValue / deltaMs * 1000.0 / 3600.0 * 1000.0 / 9.8 : 0;
-          float mass = ds_persistedState.kgWeight;
+        if (deltaMs > 0) {
+            float g = deltaSpeedValue / ((double)deltaMs) * 1000.0 / 3600.0 * 1000.0 / 9.8;
+            float mass = ds_persistedState.kgWeight;
 
-          fvalue = g * mass * speedValue * (1000.0/3600.0) / 75.0 / (useAltUnits ? 1.014 : 1.0);
-          fvalue = fabs(fvalue);
+            fvalue = g * mass * speedValue * (1000.0/3600.0) / 75.0 / (useAltUnits ? 1.014 : 1.0);
+            fvalue = max(fvalue, 0);
+
+            // Smoothing
+            float gain = min(((double)deltaMs)/1000.0, 1.0); // adjustable
+            fvalue = gain * fvalue + (1.0-gain) * lastValue;
+            lastValue = fvalue;
+        } else {
+            fvalue = lastValue;
         }
         break;
 
@@ -1415,7 +1438,8 @@ extern bool VDisplayables::updateCurrentItemValue() {
         //
         // Do special gear calculation
         //
-        if (ds_persistedState.currentItemIndex == DISPLAYABLE_ITEM_GEAR) {
+        if (ds_persistedState.currentItemIndex == DISPLAYABLE_ITEM_GEAR ||
+            ds_persistedState.currentItemIndex == DISPLAYABLE_ITEM_NV_RATIO) {
           // NV Ratio is engine-speed/vehicle-speed (RPM/KPH)
           float rpm = fvalue / 4;
           if (speedValue == 0) fvalue = 0;
@@ -1458,9 +1482,10 @@ extern bool VDisplayables::updateCurrentItemValue() {
   }
 
   // Show Gear
-  if (ds_persistedState.currentItemIndex == DISPLAYABLE_ITEM_GEAR) {
+  if (ds_persistedState.currentItemIndex == DISPLAYABLE_ITEM_GEAR ||
+      ds_persistedState.currentItemIndex == DISPLAYABLE_ITEM_NV_RATIO) {
     // Gear number
-    if (gearRpkSamplingMsRemaining <= 0 && ds_persistedState.gearCount > 1) {
+    if (ds_persistedState.currentItemIndex == DISPLAYABLE_ITEM_GEAR && gearRpkSamplingMsRemaining <= 0 && ds_persistedState.gearCount > 1) {
       int val = ds_getGear(fvalue);
       char *gears[GEAR_MAX_COUNT+1] = { " -- ", "1 st", "2 nd", "3 rd", "4 th", "5 th", "6 th", "7 th", "8 th" };
 
@@ -1470,6 +1495,7 @@ extern bool VDisplayables::updateCurrentItemValue() {
     else {
       ds_showDisplayableNumber(fvalue, disp, useAltUnits, suffix);
     }
+
     // Bar is always in max - (k/NV - min) to match gears
     if (fvalue > 0) {
       ds_showDisplayableBar(GEAR_DIVIDEND/fvalue, disp, false, false);

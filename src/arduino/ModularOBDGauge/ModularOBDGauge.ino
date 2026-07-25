@@ -37,7 +37,7 @@ VRing vring;
 // Forward declarations
 bool ap_isControlsButton1Down();
 bool ap_isControlsButton2Down();
-void ap_menuItemHighlight(int current, char color, int count, char defaultColor);
+void ap_menuItemHighlight(int current, char color, int count, MenuDataSource *ds);
 void ap_menuItemShowTitle(char *title);
 int  ap_getDisplayBarCount(void);
 void ap_setDisplayBarColor(int index, unsigned char color);
@@ -46,7 +46,7 @@ void ap_showDisplayFloatValue(float num, int decimals, int suffix, bool addPlus)
 void ap_showDisplayStatusState(bool connecting, bool resetting, int errorCount, int connectionErrorCount, int protocolIndex);
 void ap_showDisplayStatusString(char *text);
 void ap_showDisplayStatusString_P(char *ptext);
-void ap_showSweep(char color);
+void ap_showSweep(char color, int mode);
 void ap_setDisplayBrightness(int brightness);
 void ap_smartDelay(unsigned long wait);
 
@@ -83,7 +83,7 @@ void setup() {
   vring.setup(RING_PIN_CONTROL, RING_LIGHT_COUNT, RING_BRIGHTNESS, RING_ROTATION_OFFSET);
 
   ap_showDisplayStatusString_P(PSTR("VObd"));
-  ap_showSweep('c');
+  ap_showSweep('c', SWEEP_MODE_RIGHT_LEFT);
   ap_smartDelay(800);
   ap_showDisplayStatusString_P(PSTR(" " BUILD_VERSION));
   ap_smartDelay(800);
@@ -138,13 +138,32 @@ bool ap_isControlsButton2Down() {
   return ap_button2LastState;
 }
 
-void ap_menuItemHighlight(int current, char color, int count, char defaultColor) {
+void ap_menuItemHighlight(int current, char color, int count, MenuDataSource *ds) {
+  int iCur = (current + RING_STATUS_COUNT) % RING_LIGHT_COUNT;
+
   // Show current entry in ring
   for (int i = 0; i < RING_LIGHT_COUNT; i++) {
-    if (i == (current + RING_STATUS_COUNT) % RING_LIGHT_COUNT) {
+    if (i == iCur) {
       vring.setPixelColor(i, color);
     } else if (i >= RING_STATUS_COUNT && i < RING_STATUS_COUNT + count || (RING_STATUS_COUNT + count > RING_LIGHT_COUNT && i < (RING_STATUS_COUNT + count) % RING_LIGHT_COUNT)) {
-      vring.setPixelColor(i, defaultColor);
+      int delta = i - iCur;
+
+      if (delta > RING_LIGHT_COUNT/2 && current + delta - RING_LIGHT_COUNT >= 0) {
+        delta -= RING_LIGHT_COUNT;
+      } else if (delta < -RING_LIGHT_COUNT/2 && current + delta + RING_LIGHT_COUNT < count) {
+        delta += RING_LIGHT_COUNT;
+      }
+      int index = current + delta;
+      // Show wrapping limits as gap      
+      if (index == -1 || index == count) {
+        vring.setPixelColor(i, 'k');
+      } else if (index == -2 || index == count+1) {
+        vring.setPixelColor(i, '-');
+      } else if (index == -3 || index == count+2) {
+        vring.setPixelColor(i, '+');
+      } else {
+        vring.setPixelColor(i, index >=0 && index < count ? ds->getItemColor(index, current, ds) : ds->defaultColor);
+      }
     } else {
       vring.setPixelColor(i, 'k');
     }
@@ -268,24 +287,52 @@ void ap_showDisplayStatusString_P(char *ptext) {
   ap_showDisplayStatusString(text);
 }
 
-void ap_showSweep(char color) {
+void ap_showSweep(char color, int mode) {
   int lightCount = ap_getDisplayBarCount();
 
-  for (int j = 0; j < lightCount; j++) {    
-    for (int i = 0; i < lightCount; i++) {    
-      ap_setDisplayBarColor(i, i==j ? color : 'k');
-    }
-    ap_showDisplayBar(); 
-    ap_smartDelay(40);
+  switch(mode) {
+    case SWEEP_MODE_UP:
+      for (int j = 0; j <= lightCount/2; j++) {
+        for (int i = 0; i < lightCount; i++) {    
+          ap_setDisplayBarColor(i, i==j || i==lightCount-1-j ? color : 'k');
+        }
+        ap_showDisplayBar(); 
+        ap_smartDelay(40);
+      }
+      ap_setDisplayBarColor(lightCount/2, 'k');
+      break;
+
+    case SWEEP_MODE_DOWN:
+      for (int j = lightCount/2; j >= 0; j--) {    
+        for (int i = 0; i < lightCount; i++) {    
+          ap_setDisplayBarColor(i, i==j || i==lightCount-1-j ? color : 'k');
+        }
+        ap_showDisplayBar(); 
+        ap_smartDelay(40);
+      }
+      ap_setDisplayBarColor(0, 'k');
+      ap_setDisplayBarColor(lightCount-1, 'k');
+      break;
+
+    case SWEEP_MODE_RIGHT_LEFT:
+    default:
+      for (int j = 0; j < lightCount; j++) {    
+        for (int i = 0; i < lightCount; i++) {    
+          ap_setDisplayBarColor(i, i==j ? color : 'k');
+        }
+        ap_showDisplayBar(); 
+        ap_smartDelay(40);
+      }
+      for (int j = lightCount-1; j >= 0; j--) {    
+        for (int i = 0; i < lightCount; i++) {    
+          ap_setDisplayBarColor(i, i==j ? color : 'k');
+        }
+        ap_showDisplayBar(); 
+        ap_smartDelay(40);
+      }
+      ap_setDisplayBarColor(0, 'k');
+      break;
   }
-  for (int j = lightCount-1; j >= 0; j--) {    
-    for (int i = 0; i < lightCount; i++) {    
-      ap_setDisplayBarColor(i, i==j ? color : 'k');
-    }
-    ap_showDisplayBar(); 
-    ap_smartDelay(40);
-  }
-  ap_setDisplayBarColor(0, 'k');
   ap_showDisplayBar(); 
 }
 
