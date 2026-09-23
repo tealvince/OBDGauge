@@ -497,6 +497,7 @@ void ds_clearHistory(void) {
   ds_persistedState.totalElapsedSeconds = 0;
   ds_persistedState.totalDrivenKilometers = 0;
   ds_persistedState.totalConsumedFuelLitres = 0;
+  ds_persistedState.sessionElapsedSeconds = ds_persistedState.totalElapsedSeconds;
   ds_savePersistedState();
 }
 
@@ -1221,6 +1222,7 @@ static unsigned long lastMillis = 0;
 static float lastValue = 0;
 static float lastDemoValue = 0;
 static float lastSpeedValue = 0;
+static float lastBurnValue = 0;
 static float demoValue = 0;
 static bool demoValueIncrements;
 
@@ -1231,13 +1233,6 @@ extern bool VDisplayables::updateCurrentItemValue() {
   float fvalue2 = -1;
   char suffix = 0;
   long ms = millis();
-  long deltaMs = ms - lastMillis;
-
-  // Update accumulated values
-  if (deltaMs > 0) {
-    ds_persistedState.totalElapsedSeconds += ((double)(deltaMs))/1000.0;
-  } 
-  lastMillis = ms;
 
   //
   // DEMO MODE
@@ -1254,9 +1249,15 @@ extern bool VDisplayables::updateCurrentItemValue() {
     }
 
     switch (ds_persistedState.currentItemIndex) {
-      case DISPLAYABLE_ITEM_TOTAL_TIME:
+      case DISPLAYABLE_ITEM_TOTAL_TIME: {
+        long deltaMs = ms - lastMillis;
+        lastMillis = ms;
+        if (deltaMs > 0) {
+          ds_persistedState.totalElapsedSeconds += ((double)(deltaMs))/1000.0;
+        }
         demoValue = ds_persistedState.totalElapsedSeconds;
         break;
+      }
       case DISPLAYABLE_ITEM_TOTAL_DISTANCE:
       case DISPLAYABLE_ITEM_TOTAL_FUEL:
         demoValue += step/700;
@@ -1305,13 +1306,18 @@ extern bool VDisplayables::updateCurrentItemValue() {
     long speedValue = vobd.receivePidResponse(PID_SPEED, 1, true, 0);
     long mafValue = -1;
 
-    float deltaSpeedValue = speedValue - lastSpeedValue;
-    if (deltaMs > 0) {
-      lastSpeedValue = speedValue;
-    }
-
     // Speed should be supported by everything, so return error if no
     if (speedValue == -1) return false;
+
+    long deltaMs = ms - lastMillis;
+    lastMillis = ms;
+
+    // Calculate acceleration from change in speed 
+    float deltaSpeedValue = 0;
+    if (deltaMs > 0) {
+      deltaSpeedValue = speedValue - lastSpeedValue;
+      lastSpeedValue = speedValue;
+    }
 
     vobd.sendPidRequest(PID_BURN_VALUE, 1);
     long burnValue = vobd.receivePidResponse(PID_BURN_VALUE, 1, false, 0); // swallow error silently as not critical
@@ -1331,11 +1337,21 @@ extern bool VDisplayables::updateCurrentItemValue() {
 
     // Update accumulated values
     if (deltaMs > 0) {
+      ds_persistedState.totalElapsedSeconds += ((double)(deltaMs))/1000.0;
+
+      // Speed is always valid (gated above), so just add it
       if (speedValue > 0) {
-        ds_persistedState.totalDrivenKilometers += ((double)(deltaMs))*speedValue/3600000.0;
+        ds_persistedState.totalDrivenKilometers += ((double)(deltaMs))*(double)speedValue/3600000.0;
       }
+
+      // Add burn if valid
       if (burnValue > 0) {
-        ds_persistedState.totalConsumedFuelLitres += ((double)(deltaMs))*burnValue/(3600000.0*20.0);
+        ds_persistedState.totalConsumedFuelLitres += ((double)(deltaMs))*(double)burnValue/(3600000.0*20.0);
+        lastBurnValue = burnValue;
+      }
+      // Else fallback to last valid burn 
+      else if (lastBurnValue > 0) {
+        ds_persistedState.totalConsumedFuelLitres += ((double)(deltaMs))*(double)lastBurnValue/(3600000.0*20.0);
       }
     }
 
