@@ -1,5 +1,5 @@
 # vOBD: The K-line Super Gauge
-By Vince Lee (c)2024-2025
+By Vince Lee (c)2024-2026
 
 ## Description
 
@@ -11,7 +11,7 @@ in a 2" diameter circular pod.
 
 ## Feature overview
 
-* 19 displayable parameters, including instaneous and cumulative stats
+* 25 displayable parameters, including instantaneous and cumulative stats
 * Metric/Imperial units
 * Ability to hide/show individual gauges
 * Built-in readiness monitor reader
@@ -31,6 +31,10 @@ in a 2" diameter circular pod.
 * Accumulated distance
 * Average fuel efficiency
 * Average speed
+* G-Force
+* Wheel Horsepower
+* Gear
+* NV Ratio (rpm/speed)
 * Speed
 * Tachometer
 * Coolant temp
@@ -41,8 +45,9 @@ in a 2" diameter circular pod.
 * Timing advance
 * Fuel tank level
 * Fuel consumption rate
+* Air/Fuel trim
 * Air/Fuel equivalence ratio
-* O2 sensor voltage
+* O2 a/b sensor voltages
 
 ## General usage
 
@@ -57,17 +62,44 @@ in a 2" diameter circular pod.
 ## Settings menu items
 
 * Back (return to main display)
-* Erase history (clear cumulative/average gauges)
-* Display brightness
-* Unit toggle (metric/imperial)
+
+### History
+* Erase all (clear cumulative/average gauges)
+* Erase cumulative distance
+* Erase cumulative fuel
+* Erase cumulative time
+* Adjust cumulative distance
+* Adjust cumulative fuel
+* Adjust cumulative time
+
+### Brighness
+* brightness levels 1-5
+
+### Gauges
+* Toggle current gauge units (metric/us)
+* All gauges to SI Units
+* All gauges to US Units
 * Hide current gauge
 * Show gauge (select from list)
 * Auto hide/show gauges based on supported PIDs
-* See data (dump raw hex data from current gauge)
+* See info (dump raw hex data from current gauge)
+
+### Codes
 * Check readiness status
 * Read codes
 * Clear codes
+
+### Values
 * Burn adjustment (set multiplier to fine-tune fuel usage/efficiency stats)
+* Vehicle weight adjustment (used to calculate HP)
+* Show gear NV ratio thresholds
+* Start gear auto-detect drive cycle
+* Add gear
+* Remove gear
+* Edit gear threshold (1-8)
+
+### Modes
+* Toggle Loop mode (auto-advance gauges) 
 * Toggle Demo mode (simulate ECU reponses)
 * Toggle Debug mode (show received bytes)
 * Enter Sniff mode (listen to K+ line and show received data; use with Y cable and other device)
@@ -77,12 +109,11 @@ in a 2" diameter circular pod.
 ![circuit board](https://github.com/tealvince/OBDGauge/blob/main/circuit-board.png?raw=true)
 
 * Custom circuit board
-* Arduino nano
+* Arduino nano every
 * Neopixel 16-LED ring light
 * TM1637 4-Digit LED numeric display
 * LM2903 Dual comparator IC
 * 2N3906 Transistor
-* DROK Mini voltage regulator (set to 9V)
 
 ## Circuit
 
@@ -94,21 +125,21 @@ voltages.  The output of the "write" comparator goes to a PNP transistor to pull
 low when sending data back to the PCM, safely sinking more current than the comparator 
 can on its own.
 
-To power the arduino, an ignition-switched 12V output is fed to a 9V voltage regulator, 
-which in turn feeds in built-in regulator on the Arduino nano.  The extra regulator adds
-an extra layer of safety against over-voltage fluctuations since the arduino regulator
-is only rated to 12V.  A large capacitor briefly keeps the unit running long enough to 
-save state to persistent memory after the ignition is turned off.
+To power the arduino, an ignition-switched 12V output is fed to the built-in regulator 
+on the Arduino Nano Every (previous iterations used an external voltage regulator with
+a plain Arduino Nano, whole upper voltage limit was only 12V).  A large capacitor briefly 
+keeps the unit running long enough to save state to persistent memory after the ignition 
+is turned off.
 
 ## Software
 
 The gauge software is written in C++ with minimal libraries to drive the LED displays.
 Serial communication is done with raw bit banging, implementing serial port communication 
-in software timed off the arduino microsecond timer.
+purely in software timed off the Arduino microsecond timer.
 
 ## Testing
 
-Try out the software or expriment with code changes in a simulated environment using
+Try out the software or experiment with code changes in a simulated environment using
 the following  WOKWI project.  Recommend enabling Demo Mode from the settings menu
 since the ECU itself is not simulated:
 
