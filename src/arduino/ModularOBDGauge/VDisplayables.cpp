@@ -513,6 +513,7 @@ void ds_clearFuel(void) {
 
 void ds_clearTime(void) {
   ds_persistedState.totalElapsedSeconds = 0;
+  ds_persistedState.sessionElapsedSeconds = ds_persistedState.totalElapsedSeconds;
   ds_savePersistedState();
 }
 
@@ -542,6 +543,7 @@ void ds_adjustFuel(void) {
 
 void ds_adjustTime(void) {
   ds_persistedState.totalElapsedSeconds = 60*ds_setValue("Mins", ds_persistedState.totalElapsedSeconds/60, 0, 10000, 1, 10, 100, 1);
+  ds_persistedState.sessionElapsedSeconds = ds_persistedState.totalElapsedSeconds;
   ds_savePersistedState();
 }
 
